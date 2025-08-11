@@ -101,6 +101,8 @@ public class MessagePublishingService {
             PaymentRefundEvent event = new PaymentRefundEvent(
                     orderId,
                     paymentId,
+                    UUID.randomUUID().toString(), // refundId
+                    "Order processing compensation",
                     LocalDateTime.now()
             );
             rabbitTemplate.convertAndSend(exchangeName, "payment.refund", event);
@@ -119,6 +121,7 @@ public class MessagePublishingService {
             InventoryReleaseEvent event = new InventoryReleaseEvent(
                     orderId,
                     reservationId,
+                    "Order processing compensation",
                     LocalDateTime.now()
             );
             rabbitTemplate.convertAndSend(exchangeName, "inventory.release", event);
@@ -137,6 +140,7 @@ public class MessagePublishingService {
             ShippingCancellationEvent event = new ShippingCancellationEvent(
                     orderId,
                     shippingId,
+                    "Order processing compensation",
                     LocalDateTime.now()
             );
             rabbitTemplate.convertAndSend(exchangeName, "shipping.cancel", event);

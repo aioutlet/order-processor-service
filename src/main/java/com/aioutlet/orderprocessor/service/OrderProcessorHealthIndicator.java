@@ -4,8 +4,6 @@ import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.actuator.health.Health;
-import org.springframework.boot.actuator.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -14,17 +12,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Custom health indicator for order processor service
+ * Custom health check service for order processor
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OrderProcessorHealthIndicator implements HealthIndicator {
+public class OrderProcessorHealthIndicator {
 
     private final OrderProcessingSagaRepository sagaRepository;
 
-    @Override
-    public Health health() {
+    /**
+     * Get health status of the order processor
+     */
+    public Map<String, Object> getHealthStatus() {
         try {
             Map<String, Object> details = new HashMap<>();
             
@@ -56,26 +56,24 @@ public class OrderProcessorHealthIndicator implements HealthIndicator {
             
             // Determine health status
             if (stuckSagas > 10) {
-                return Health.down()
-                    .withDetails(details)
-                    .withDetail("reason", "Too many stuck sagas")
-                    .build();
+                details.put("status", "DOWN");
+                details.put("reason", "Too many stuck sagas");
             } else if (stuckSagas > 5) {
-                return Health.status("DEGRADED")
-                    .withDetails(details)
-                    .withDetail("reason", "Some sagas are stuck")
-                    .build();
+                details.put("status", "DEGRADED");
+                details.put("reason", "Some sagas are stuck");
             } else {
-                return Health.up()
-                    .withDetails(details)
-                    .build();
+                details.put("status", "UP");
+                details.put("reason", "All systems operational");
             }
+            
+            return details;
             
         } catch (Exception e) {
             log.error("Health check failed", e);
-            return Health.down()
-                .withException(e)
-                .build();
+            Map<String, Object> errorDetails = new HashMap<>();
+            errorDetails.put("status", "DOWN");
+            errorDetails.put("reason", "Health check failed: " + e.getMessage());
+            return errorDetails;
         }
     }
 }

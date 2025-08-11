@@ -6,7 +6,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +18,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * Service for collecting and exposing metrics about saga processing
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class SagaMetricsService {
 
@@ -36,21 +34,21 @@ public class SagaMetricsService {
         this.meterRegistry = meterRegistry;
         
         // Register gauges
-        Gauge.builder("saga.active.count")
+        Gauge.builder("saga.active.count", activeSagasGauge, AtomicLong::get)
             .description("Number of active sagas")
-            .register(meterRegistry, activeSagasGauge, AtomicLong::get);
+            .register(meterRegistry);
             
-        Gauge.builder("saga.completed.count")
+        Gauge.builder("saga.completed.count", completedSagasGauge, AtomicLong::get)
             .description("Number of completed sagas")
-            .register(meterRegistry, completedSagasGauge, AtomicLong::get);
+            .register(meterRegistry);
             
-        Gauge.builder("saga.failed.count")
+        Gauge.builder("saga.failed.count", failedSagasGauge, AtomicLong::get)
             .description("Number of failed sagas")
-            .register(meterRegistry, failedSagasGauge, AtomicLong::get);
+            .register(meterRegistry);
             
-        Gauge.builder("saga.stuck.count")
+        Gauge.builder("saga.stuck.count", stuckSagasGauge, AtomicLong::get)
             .description("Number of stuck sagas")
-            .register(meterRegistry, stuckSagasGauge, AtomicLong::get);
+            .register(meterRegistry);
     }
 
     /**
