@@ -1,0 +1,63 @@
+# Application configuration in YAML format
+spring:
+  application:
+    name: order-processor-service
+  
+  # JSON serialization
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
+  
+  # Actuator
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics,prometheus
+    endpoint:
+      health:
+        show-details: always
+        show-components: always
+        probes:
+          enabled: true
+    health:
+      rabbit:
+        enabled: true
+      db:
+        enabled: true
+        
+  # Logging
+  logging:
+    pattern:
+      console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [%X{traceId},%X{spanId}] - %msg%n"
+    level:
+      com.aioutlet.orderprocessor: INFO
+      org.springframework.amqp: WARN
+      org.hibernate.SQL: WARN
+      
+# Server configuration
+server:
+  port: 8083
+  servlet:
+    context-path: /api
+  error:
+    include-message: always
+    include-binding-errors: always
+    
+# Custom configuration
+saga:
+  retry:
+    maxAttempts: 3
+    backoffMultiplier: 2
+    initialDelay: 1000
+  timeout:
+    payment: 300
+    inventory: 180
+    shipping: 240
+  scheduler:
+    stuck-sagas-rate: 900000  # 15 minutes
+    retry-sagas-rate: 300000  # 5 minutes
