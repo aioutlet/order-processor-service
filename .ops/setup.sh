@@ -194,3 +194,31 @@ echo "  DB_HOST=$DB_HOST"
 echo "  DB_PORT=$DB_PORT"
 echo "  DB_NAME=$DB_NAME"
 echo "  DB_USER=$DB_USER"
+echo ""
+
+# Start services with Docker Compose
+echo "🐳 Starting services with Docker Compose..."
+if docker-compose up -d; then
+    echo "✅ Services started successfully"
+    echo ""
+    echo "⏳ Waiting for services to be ready..."
+    sleep 15
+    
+    # Check service health
+    if docker-compose ps | grep -q "Up.*healthy\|Up"; then
+        echo "✅ Services are running"
+    else
+        echo "⚠️  Services may still be starting up"
+    fi
+else
+    echo "❌ Failed to start services with Docker Compose"
+    exit 1
+fi
+echo ""
+
+echo "🎉 Order Processor Service setup completed successfully!"
+echo ""
+echo "🚀 Service is now running:"
+echo "  • View status: docker-compose ps"
+echo "  • View logs: docker-compose logs -f"
+echo "  • Stop services: bash .ops/teardown.sh"

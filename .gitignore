@@ -88,6 +88,12 @@ build/
 application-local.properties
 application-secrets.properties
 
+# Secrets - Never commit these
+secrets/
+*.txt
+*.key
+*.pem
+
 # Docker
 .dockerignore
 

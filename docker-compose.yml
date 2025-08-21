@@ -3,67 +3,91 @@ version: '3.8'
 services:
   order-processor-service:
     build: .
+    container_name: order-processor-service-development
+    restart: unless-stopped
     ports:
       - '8083:8083'
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/OrderProcessorDb
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-      - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
-      - SPRING_RABBITMQ_USERNAME=guest
-      - SPRING_RABBITMQ_PASSWORD=guest
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - aioutlet-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8083/api/actuator/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   postgres:
     image: postgres:15-alpine
+    container_name: order-processor-postgres-development
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=OrderProcessorDb
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=OrderProcessorDb_Dev
+      - POSTGRES_USER=orderprocessor
+      - POSTGRES_PASSWORD=dev_password_123
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U orderprocessor -d OrderProcessorDb_Dev']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - aioutlet-network
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    container_name: order-processor-rabbitmq-development
+    restart: unless-stopped
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_USER=orderprocessor
+      - RABBITMQ_DEFAULT_PASS=dev_rabbitmq_123
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '5673:5672'
+      - '15673:15672'
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - aioutlet-network
 
   prometheus:
     image: prom/prometheus:latest
+    container_name: order-processor-prometheus-development
+    restart: unless-stopped
     ports:
-      - '9090:9090'
+      - '9091:9090'
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - aioutlet-network
 
   grafana:
     image: grafana/grafana:latest
+    container_name: order-processor-grafana-development
+    restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '3001:3000'
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=dev_grafana_123
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - aioutlet-network
 
