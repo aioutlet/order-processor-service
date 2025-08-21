@@ -3,21 +3,14 @@ FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 
 # Copy Maven files
-COPY pom.xml .
-COPY .mvn/ .mvn/
-COPY mvnw .
+COPY pom.xml ./
 
-# Make mvnw executable
-RUN chmod +x mvnw
-
-# Download dependencies (this layer will be cached if pom.xml doesn't change)
-RUN ./mvnw dependency:go-offline
-
-# Copy source code
+# Copy Maven source
 COPY src/ src/
 
-# Build application
-RUN ./mvnw clean package -DskipTests
+# Build application using Maven
+RUN apk add --no-cache maven && \
+    mvn clean package -DskipTests=true -B
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine AS runtime
@@ -38,7 +31,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8083/api/actuator/health || exit 1
 
 # Expose port
 EXPOSE 8083
