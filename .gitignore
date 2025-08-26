@@ -23,13 +23,6 @@
 hs_err_pid*
 replay_pid*
 
-# Gradle
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
 # Maven
 target/
 !.mvn/wrapper/maven-wrapper.jar
@@ -62,7 +55,6 @@ bin/
 /nbbuild/
 /dist/
 /nbdist/
-/.nb-gradle/
 
 # IDE - VS Code
 .vscode/
@@ -78,9 +70,6 @@ Thumbs.db
 
 # Spring Boot
 HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**
 !**/src/test/**
 

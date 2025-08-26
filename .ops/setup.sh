@@ -27,35 +27,23 @@ echo "✅ Docker Compose found: $(docker-compose --version)"
 
 # Determine build tool
 BUILD_TOOL=""
-if command -v gradle &> /dev/null; then
-    BUILD_TOOL="gradle"
-    echo "✅ Using Gradle for build management"
-elif command -v mvn &> /dev/null; then
+if command -v mvn &> /dev/null; then
     BUILD_TOOL="maven"
     echo "✅ Using Maven for build management"
 else
-    echo "❌ Neither Gradle nor Maven found. Please install one of them."
+    echo "❌ Maven not found. Please install Maven."
     exit 1
 fi
 
 # Clean and build the application
 echo ""
 echo "🔨 Building Order Processor Service..."
-if [ "$BUILD_TOOL" = "gradle" ]; then
-    ./gradlew clean build -x test
-    if [ $? -ne 0 ]; then
-        echo "❌ Gradle build failed"
-        exit 1
-    fi
-    echo "✅ Gradle build completed successfully"
-elif [ "$BUILD_TOOL" = "maven" ]; then
-    mvn clean package -DskipTests
-    if [ $? -ne 0 ]; then
-        echo "❌ Maven build failed"
-        exit 1
-    fi
-    echo "✅ Maven build completed successfully"
+mvn clean package -DskipTests
+if [ $? -ne 0 ]; then
+    echo "❌ Maven build failed"
+    exit 1
 fi
+echo "✅ Maven build completed successfully"
 
 # Start services with Docker Compose
 echo ""
