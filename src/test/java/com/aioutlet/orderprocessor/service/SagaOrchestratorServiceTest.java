@@ -151,7 +151,7 @@ class SagaOrchestratorServiceTest {
 
         // Assert
         verify(sagaRepository).findByOrderId(paymentFailedEvent.getOrderId());
-        assertEquals(OrderProcessingSaga.SagaStatus.COMPENSATING, testSaga.getStatus());
+        assertEquals(OrderProcessingSaga.SagaStatus.COMPENSATED, testSaga.getStatus());
     }
 
     @Test
