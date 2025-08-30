@@ -74,8 +74,8 @@ HELP.md
 !**/src/test/**
 
 # Application specific
-application-local.properties
-application-secrets.properties
+# application-local.properties
+# application-secrets.properties
 
 # Secrets - Never commit these
 secrets/
