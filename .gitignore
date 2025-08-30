@@ -84,13 +84,13 @@ secrets/
 *.pem
 
 # Docker
-.dockerignore
+# .dockerignore
 
 # Environment variables
-.env
-.env.local
-.env.development
-.env.production
+# .env
+# .env.local
+# .env.development
+# .env.production
 
 # Logs
 logs/
