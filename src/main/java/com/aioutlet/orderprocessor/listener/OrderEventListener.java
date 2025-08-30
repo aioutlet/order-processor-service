@@ -2,9 +2,9 @@ package com.aioutlet.orderprocessor.listener;
 
 import com.aioutlet.orderprocessor.model.events.*;
 import com.aioutlet.orderprocessor.service.SagaOrchestratorService;
+import com.aioutlet.orderprocessor.util.CorrelationIdUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
@@ -35,8 +35,8 @@ public class OrderEventListener {
             correlationId = "unknown";
         }
         
-        // Add correlation ID to MDC for logging
-        MDC.put("correlationId", correlationId);
+        // Set correlation ID using utility
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
             log.info("Received OrderCreatedEvent for order: {} [CorrelationId: {}]", 
@@ -47,7 +47,7 @@ public class OrderEventListener {
             log.error("Error processing OrderCreatedEvent for order {} [CorrelationId: {}]: {}", 
                     event.getOrderId(), correlationId, e.getMessage(), e);
         } finally {
-            MDC.clear();
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
