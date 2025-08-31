@@ -18,7 +18,7 @@ COPY pom.xml ./
 RUN mkdir -p src/main/java
 
 # Download all dependencies and plugins (this layer will be cached)
-RUN mvn dependency:go-offline dependency:resolve-sources -B --no-transfer-progress
+RUN mvn dependency:go-offline dependency:sources -B --no-transfer-progress
 
 # -----------------------------------------------------------------------------
 # Build stage - Build the application
