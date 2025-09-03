@@ -3,9 +3,8 @@ package com.aioutlet.orderprocessor.service;
 import com.aioutlet.orderprocessor.model.events.InventoryReservationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+// import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,16 +17,17 @@ import java.util.UUID;
 @Slf4j
 public class ExternalServiceClient {
 
-    private final RestTemplate restTemplate;
+    // Note: Service URLs commented out as they're currently unused in mock implementations
+    // TODO: Uncomment when implementing actual service calls
+    
+    // @Value("${services.payment.url}")
+    // private String paymentServiceUrl;
 
-    @Value("${services.payment.url}")
-    private String paymentServiceUrl;
+    // @Value("${services.inventory.url}")
+    // private String inventoryServiceUrl;
 
-    @Value("${services.inventory.url}")
-    private String inventoryServiceUrl;
-
-    @Value("${services.shipping.url}")
-    private String shippingServiceUrl;
+    // @Value("${services.shipping.url}")
+    // private String shippingServiceUrl;
 
     /**
      * Get order items from Order Service

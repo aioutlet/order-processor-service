@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
+// import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,14 +22,8 @@ public class MessagePublisher {
     private final RabbitTemplate rabbitTemplate;
     private final TopicExchange orderExchange;
 
-    @Value("${messaging.routing-key.payment-processed}")
-    private String paymentProcessedRoutingKey;
-
-    @Value("${messaging.routing-key.inventory-reserved}")
-    private String inventoryReservedRoutingKey;
-
-    @Value("${messaging.routing-key.shipping-prepared}")
-    private String shippingPreparedRoutingKey;
+    // Note: Routing key @Value properties removed as they were unused
+    // Methods use hardcoded routing keys instead of configurable ones
 
     /**
      * Publish payment processing event
@@ -94,12 +88,13 @@ public class MessagePublisher {
      */
     public void publishShippingCancellation(UUID orderId, String shippingId) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "shipping.cancelled", 
-                    new Object() {
-                        public UUID getOrderId() { return orderId; }
-                        public String getShippingId() { return shippingId; }
-                        public LocalDateTime getCancelledAt() { return LocalDateTime.now(); }
-                    });
+            ShippingCancellationEvent event = new ShippingCancellationEvent(
+                orderId, 
+                shippingId, 
+                "Saga compensation", 
+                LocalDateTime.now()
+            );
+            rabbitTemplate.convertAndSend(orderExchange.getName(), "shipping.cancelled", event);
             log.info("Published shipping cancellation event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish shipping cancellation event for order: {}", orderId, e);
@@ -111,12 +106,13 @@ public class MessagePublisher {
      */
     public void publishInventoryRelease(UUID orderId, String reservationId) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "inventory.released", 
-                    new Object() {
-                        public UUID getOrderId() { return orderId; }
-                        public String getReservationId() { return reservationId; }
-                        public LocalDateTime getReleasedAt() { return LocalDateTime.now(); }
-                    });
+            InventoryReleaseEvent event = new InventoryReleaseEvent(
+                orderId, 
+                reservationId, 
+                "Saga compensation", 
+                LocalDateTime.now()
+            );
+            rabbitTemplate.convertAndSend(orderExchange.getName(), "inventory.released", event);
             log.info("Published inventory release event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish inventory release event for order: {}", orderId, e);
@@ -128,12 +124,14 @@ public class MessagePublisher {
      */
     public void publishPaymentRefund(UUID orderId, String paymentId) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "payment.refund", 
-                    new Object() {
-                        public UUID getOrderId() { return orderId; }
-                        public String getPaymentId() { return paymentId; }
-                        public LocalDateTime getRefundedAt() { return LocalDateTime.now(); }
-                    });
+            PaymentRefundEvent event = new PaymentRefundEvent(
+                orderId, 
+                paymentId, 
+                UUID.randomUUID().toString(), // refundId
+                "Saga compensation", 
+                LocalDateTime.now()
+            );
+            rabbitTemplate.convertAndSend(orderExchange.getName(), "payment.refund", event);
             log.info("Published payment refund event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish payment refund event for order: {}", orderId, e);
