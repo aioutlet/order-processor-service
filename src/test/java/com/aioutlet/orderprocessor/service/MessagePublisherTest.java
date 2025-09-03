@@ -44,10 +44,8 @@ class MessagePublisherTest {
         // Set up the exchange name
         when(orderExchange.getName()).thenReturn("order.exchange");
         
-        // Set up routing keys using reflection
-        ReflectionTestUtils.setField(messagePublisher, "paymentProcessedRoutingKey", "payment.processed");
-        ReflectionTestUtils.setField(messagePublisher, "inventoryReservedRoutingKey", "inventory.reserved");
-        ReflectionTestUtils.setField(messagePublisher, "shippingPreparedRoutingKey", "shipping.prepared");
+        // Note: Routing keys are now hardcoded in the MessagePublisher methods
+        // No need to set up routing keys via reflection
     }
 
     @Test
