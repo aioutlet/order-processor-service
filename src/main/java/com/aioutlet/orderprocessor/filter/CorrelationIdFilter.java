@@ -1,11 +1,13 @@
 package com.aioutlet.orderprocessor.filter;
 
+import com.aioutlet.orderprocessor.util.TracingUtil;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -13,8 +15,8 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Servlet filter for handling correlation IDs in HTTP requests
- * This filter ensures every request has a correlation ID for distributed tracing
+ * Servlet filter for handling correlation IDs and tracing context in HTTP requests
+ * This filter ensures every request has a correlation ID and trace context for distributed tracing
  */
 @Component
 @Order(1) // Ensure this filter runs first
@@ -23,6 +25,13 @@ public class CorrelationIdFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(CorrelationIdFilter.class);
     private static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
     private static final String MDC_CORRELATION_ID_KEY = "correlationId";
+    private static final String MDC_TRACE_ID_KEY = "traceId";
+    private static final String MDC_SPAN_ID_KEY = "spanId";
+    private static final String MDC_SERVICE_NAME_KEY = "serviceName";
+    private static final String MDC_SERVICE_VERSION_KEY = "serviceVersion";
+
+    @Autowired(required = false)
+    private TracingUtil tracingUtil;
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -43,6 +52,20 @@ public class CorrelationIdFilter implements Filter {
             // Set correlation ID in MDC for logging
             MDC.put(MDC_CORRELATION_ID_KEY, correlationId);
             
+            // Get and set tracing context in MDC
+            if (tracingUtil != null) {
+                TracingUtil.TracingContext tracingContext = tracingUtil.getTracingContext();
+                if (tracingContext.isValid()) {
+                    MDC.put(MDC_TRACE_ID_KEY, tracingContext.getTraceId());
+                    MDC.put(MDC_SPAN_ID_KEY, tracingContext.getSpanId());
+                }
+                
+                // Add service information to MDC
+                TracingUtil.ServiceInfo serviceInfo = tracingUtil.getServiceInfo();
+                MDC.put(MDC_SERVICE_NAME_KEY, serviceInfo.getServiceName());
+                MDC.put(MDC_SERVICE_VERSION_KEY, serviceInfo.getServiceVersion());
+            }
+            
             // Add correlation ID to response headers
             httpResponse.setHeader(CORRELATION_ID_HEADER, correlationId);
             
@@ -58,6 +81,10 @@ public class CorrelationIdFilter implements Filter {
         } finally {
             // Clean up MDC to prevent memory leaks
             MDC.remove(MDC_CORRELATION_ID_KEY);
+            MDC.remove(MDC_TRACE_ID_KEY);
+            MDC.remove(MDC_SPAN_ID_KEY);
+            MDC.remove(MDC_SERVICE_NAME_KEY);
+            MDC.remove(MDC_SERVICE_VERSION_KEY);
         }
     }
 

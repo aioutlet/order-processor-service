@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Console appender with correlation ID -->
+    
+    <!-- Import OpenTelemetry appender -->
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender" />
+
+    <!-- Console appender with unified format to match user service -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>[%X{correlationId:-unknown}] %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <!-- Format: [timestamp] [level] service [correlationId] [traceId] [spanId]: message -->
+            <pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%level] %X{serviceName:-order-processor-service} [%X{correlationId:-no-correlation}] [%X{traceId:-}] [%X{spanId:-}]: %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- File appender with correlation ID -->
+    <!-- File appender with unified format -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/order-processor-service.log</file>
         <encoder>
-            <pattern>[%X{correlationId:-unknown}] %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%level] %X{serviceName:-order-processor-service} [%X{correlationId:-no-correlation}] [%X{traceId:-}] [%X{spanId:-}]: %msg%n</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>logs/order-processor-service.%d{yyyy-MM-dd}.log</fileNamePattern>
@@ -20,21 +25,42 @@
         </rollingPolicy>
     </appender>
 
-    <!-- JSON appender for structured logging (useful for log aggregation) -->
+    <!-- JSON appender for structured logging (matches user service unified schema) -->
     <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
             <providers>
-                <timestamp/>
-                <logLevel/>
-                <loggerName/>
-                <mdc/>
-                <message/>
-                <stackTrace/>
+                <timestamp>
+                    <fieldName>timestamp</fieldName>
+                    <pattern>yyyy-MM-dd'T'HH:mm:ss.SSSXXX</pattern>
+                </timestamp>
+                <logLevel>
+                    <fieldName>level</fieldName>
+                </logLevel>
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                </loggerName>
+                <message>
+                    <fieldName>message</fieldName>
+                </message>
+                <mdc>
+                    <includeMdcKeyName>correlationId</includeMdcKeyName>
+                    <includeMdcKeyName>traceId</includeMdcKeyName>
+                    <includeMdcKeyName>spanId</includeMdcKeyName>
+                    <includeMdcKeyName>serviceName</includeMdcKeyName>
+                    <includeMdcKeyName>serviceVersion</includeMdcKeyName>
+                </mdc>
+                <stackTrace>
+                    <fieldName>stackTrace</fieldName>
+                </stackTrace>
                 <pattern>
                     <pattern>
                         {
-                            "correlationId": "%X{correlationId:-unknown}",
-                            "service": "order-processor-service"
+                            "service": "%X{serviceName:-order-processor-service}",
+                            "version": "%X{serviceVersion:-1.0.0}",
+                            "environment": "${SPRING_PROFILES_ACTIVE:-local}",
+                            "correlationId": "%X{correlationId}",
+                            "traceId": "%X{traceId}",
+                            "spanId": "%X{spanId}"
                         }
                     </pattern>
                 </pattern>
@@ -46,6 +72,7 @@
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
+        <appender-ref ref="OTEL"/>
         <!-- Uncomment for JSON logging -->
         <!-- <appender-ref ref="JSON"/> -->
     </root>
@@ -60,4 +87,13 @@
     <!-- Database logging -->
     <logger name="org.hibernate.SQL" level="DEBUG"/>
     <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    
+    <!-- OpenTelemetry logging -->
+    <logger name="io.opentelemetry" level="INFO"/>
+    
+    <!-- Reduce verbose tracing logs in development -->
+    <springProfile name="development,local">
+        <logger name="io.opentelemetry" level="WARN"/>
+    </springProfile>
+    
 </configuration>

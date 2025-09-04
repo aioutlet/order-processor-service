@@ -30,15 +30,28 @@ spring:
       db:
         enabled: true
         
-  # Logging
+  # Logging (override pattern defined in logback)
   logging:
-    pattern:
-      console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [%X{traceId},%X{spanId}] - %msg%n"
     level:
       com.aioutlet.orderprocessor: INFO
       org.springframework.amqp: WARN
       org.hibernate.SQL: WARN
+      io.opentelemetry: WARN
       
+# Application version
+application:
+  version: 1.0.0
+
+# Tracing configuration
+tracing:
+  enabled: true
+  otlp:
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  service:
+    name: ${OTEL_SERVICE_NAME:order-processor-service}
+    version: ${OTEL_SERVICE_VERSION:1.0.0}
+    instance-id: ${HOSTNAME:unknown}
+
 # Server configuration
 server:
   port: 8083
