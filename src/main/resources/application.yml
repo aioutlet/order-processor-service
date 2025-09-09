@@ -2,7 +2,7 @@
 spring:
   application:
     name: order-processor-service
-  
+
   # JSON serialization
   jackson:
     default-property-inclusion: non_null
@@ -11,7 +11,7 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
     date-format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
-  
+
   # Actuator
   management:
     endpoints:
@@ -29,7 +29,7 @@ spring:
         enabled: true
       db:
         enabled: true
-        
+
   # Logging (override pattern defined in logback)
   logging:
     level:
@@ -37,10 +37,19 @@ spring:
       org.springframework.amqp: WARN
       org.hibernate.SQL: WARN
       io.opentelemetry: WARN
-      
+
 # Application version
 application:
   version: 1.0.0
+
+# Rate limiting configuration
+app:
+  rate-limit:
+    enabled: true
+    requests-per-minute: 100
+    window-size-minutes: 1
+    saga-operations-per-minute: 50
+    admin-operations-per-minute: 20
 
 # Tracing configuration
 tracing:
@@ -60,7 +69,7 @@ server:
   error:
     include-message: always
     include-binding-errors: always
-    
+
 # Custom configuration
 saga:
   retry:
@@ -72,5 +81,5 @@ saga:
     inventory: 180
     shipping: 240
   scheduler:
-    stuck-sagas-rate: 900000  # 15 minutes
-    retry-sagas-rate: 300000  # 5 minutes
+    stuck-sagas-rate: 900000 # 15 minutes
+    retry-sagas-rate: 300000 # 5 minutes
