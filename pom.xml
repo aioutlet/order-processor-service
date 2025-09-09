@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
         <micrometer.version>1.13.1</micrometer.version>
         <opentelemetry.version>1.32.0</opentelemetry.version>
     </properties>
