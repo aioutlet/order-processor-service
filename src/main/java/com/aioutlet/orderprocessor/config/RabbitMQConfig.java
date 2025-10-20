@@ -27,6 +27,21 @@ public class RabbitMQConfig {
     @Value("${messaging.routing-key.order-created}")
     private String orderCreatedRoutingKey;
 
+    @Value("${messaging.routing-key.order-updated}")
+    private String orderUpdatedRoutingKey;
+
+    @Value("${messaging.routing-key.order-cancelled}")
+    private String orderCancelledRoutingKey;
+
+    @Value("${messaging.routing-key.order-shipped:order.shipped}")
+    private String orderShippedRoutingKey;
+
+    @Value("${messaging.routing-key.order-delivered:order.delivered}")
+    private String orderDeliveredRoutingKey;
+
+    @Value("${messaging.routing-key.order-deleted:order.deleted}")
+    private String orderDeletedRoutingKey;
+
     @Value("${messaging.routing-key.payment-processed}")
     private String paymentProcessedRoutingKey;
 
@@ -98,6 +113,46 @@ public class RabbitMQConfig {
                 .bind(orderProcessorQueue())
                 .to(orderExchange())
                 .with(orderCreatedRoutingKey);
+    }
+
+    @Bean
+    public Binding orderUpdatedBinding() {
+        return BindingBuilder
+                .bind(orderProcessorQueue())
+                .to(orderExchange())
+                .with(orderUpdatedRoutingKey);
+    }
+
+    @Bean
+    public Binding orderCancelledBinding() {
+        return BindingBuilder
+                .bind(orderProcessorQueue())
+                .to(orderExchange())
+                .with(orderCancelledRoutingKey);
+    }
+
+    @Bean
+    public Binding orderShippedBinding() {
+        return BindingBuilder
+                .bind(orderProcessorQueue())
+                .to(orderExchange())
+                .with(orderShippedRoutingKey);
+    }
+
+    @Bean
+    public Binding orderDeliveredBinding() {
+        return BindingBuilder
+                .bind(orderProcessorQueue())
+                .to(orderExchange())
+                .with(orderDeliveredRoutingKey);
+    }
+
+    @Bean
+    public Binding orderDeletedBinding() {
+        return BindingBuilder
+                .bind(orderProcessorQueue())
+                .to(orderExchange())
+                .with(orderDeletedRoutingKey);
     }
 
     @Bean

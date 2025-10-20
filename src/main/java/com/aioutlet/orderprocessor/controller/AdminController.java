@@ -2,6 +2,7 @@ package com.aioutlet.orderprocessor.controller;
 
 import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
+import com.aioutlet.orderprocessor.service.MessageBrokerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class AdminController {
 
     private final OrderProcessingSagaRepository sagaRepository;
+    private final MessageBrokerService messageBrokerService;
 
     /**
      * Get all sagas with pagination
@@ -66,5 +68,18 @@ public class AdminController {
         );
         
         return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Get message broker info
+     */
+    @GetMapping("/broker-info")
+    public ResponseEntity<Map<String, Object>> getBrokerInfo() {
+        Map<String, Object> info = Map.of(
+            "provider", messageBrokerService.getProviderName(),
+            "healthy", messageBrokerService.isHealthy()
+        );
+        
+        return ResponseEntity.ok(info);
     }
 }

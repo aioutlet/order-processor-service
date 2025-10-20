@@ -162,6 +162,45 @@ public class SagaMetricsService {
     }
 
     /**
+     * Record saga completed event (without processing time)
+     */
+    public void recordSagaCompleted(String orderNumber) {
+        Counter.builder("saga.completed.total")
+            .description("Total number of sagas completed")
+            .tag("order_number", orderNumber)
+            .register(meterRegistry)
+            .increment();
+        
+        updateGauges();
+    }
+
+    /**
+     * Record saga cancelled event
+     */
+    public void recordSagaCancelled(String orderNumber) {
+        Counter.builder("saga.cancelled.total")
+            .description("Total number of sagas cancelled")
+            .tag("order_number", orderNumber)
+            .register(meterRegistry)
+            .increment();
+        
+        updateGauges();
+    }
+
+    /**
+     * Record saga deleted event
+     */
+    public void recordSagaDeleted(String orderNumber) {
+        Counter.builder("saga.deleted.total")
+            .description("Total number of sagas deleted")
+            .tag("order_number", orderNumber)
+            .register(meterRegistry)
+            .increment();
+        
+        updateGauges();
+    }
+
+    /**
      * Update gauge metrics
      */
     public void updateGauges() {

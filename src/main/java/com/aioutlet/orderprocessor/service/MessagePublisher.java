@@ -3,34 +3,29 @@ package com.aioutlet.orderprocessor.service;
 import com.aioutlet.orderprocessor.model.events.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.TopicExchange;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-// import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Service for publishing messages to RabbitMQ
+ * Service for publishing messages using the configured message broker adapter
+ * This service provides a high-level API for saga orchestration events
+ * and delegates to MessageBrokerService which uses the adapter pattern
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MessagePublisher {
 
-    private final RabbitTemplate rabbitTemplate;
-    private final TopicExchange orderExchange;
-
-    // Note: Routing key @Value properties removed as they were unused
-    // Methods use hardcoded routing keys instead of configurable ones
+    private final MessageBrokerService messageBrokerService;
 
     /**
      * Publish payment processing event
      */
     public void publishPaymentProcessing(PaymentProcessingEvent event) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "payment.processing", event);
+            messageBrokerService.publishPaymentProcessing(event);
             log.info("Published payment processing event for order: {}", event.getOrderId());
         } catch (Exception e) {
             log.error("Failed to publish payment processing event for order: {}", event.getOrderId(), e);
@@ -43,7 +38,7 @@ public class MessagePublisher {
      */
     public void publishInventoryReservation(InventoryReservationEvent event) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "inventory.reservation", event);
+            messageBrokerService.publishInventoryReservation(event);
             log.info("Published inventory reservation event for order: {}", event.getOrderId());
         } catch (Exception e) {
             log.error("Failed to publish inventory reservation event for order: {}", event.getOrderId(), e);
@@ -61,7 +56,7 @@ public class MessagePublisher {
                     customerId, 
                     LocalDateTime.now()
             );
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "shipping.preparation", event);
+            messageBrokerService.publishShippingPreparation(event);
             log.info("Published shipping preparation event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish shipping preparation event for order: {}", orderId, e);
@@ -75,7 +70,7 @@ public class MessagePublisher {
     public void publishOrderCompleted(UUID orderId) {
         try {
             OrderCompletedEvent event = new OrderCompletedEvent(orderId, LocalDateTime.now());
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "order.completed", event);
+            messageBrokerService.publishOrderCompleted(event);
             log.info("Published order completed event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish order completed event for order: {}", orderId, e);
@@ -94,7 +89,7 @@ public class MessagePublisher {
                 "Saga compensation", 
                 LocalDateTime.now()
             );
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "shipping.cancelled", event);
+            messageBrokerService.publishShippingCancellation(orderId, shippingId);
             log.info("Published shipping cancellation event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish shipping cancellation event for order: {}", orderId, e);
@@ -112,7 +107,7 @@ public class MessagePublisher {
                 "Saga compensation", 
                 LocalDateTime.now()
             );
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "inventory.released", event);
+            messageBrokerService.publishInventoryRelease(orderId, reservationId);
             log.info("Published inventory release event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish inventory release event for order: {}", orderId, e);
@@ -131,7 +126,7 @@ public class MessagePublisher {
                 "Saga compensation", 
                 LocalDateTime.now()
             );
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "payment.refund", event);
+            messageBrokerService.publishPaymentRefund(orderId, paymentId);
             log.info("Published payment refund event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish payment refund event for order: {}", orderId, e);
@@ -143,7 +138,7 @@ public class MessagePublisher {
      */
     public void publishPaymentProcessed(PaymentProcessedEvent event) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "payment.processed", event);
+            messageBrokerService.publishPaymentProcessed(event);
             log.info("Published payment processed event for order: {}", event.getOrderId());
         } catch (Exception e) {
             log.error("Failed to publish payment processed event for order: {}", event.getOrderId(), e);
@@ -155,7 +150,7 @@ public class MessagePublisher {
      */
     public void publishInventoryReserved(InventoryReservedEvent event) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "inventory.reserved", event);
+            messageBrokerService.publishInventoryReserved(event);
             log.info("Published inventory reserved event for order: {}", event.getOrderId());
         } catch (Exception e) {
             log.error("Failed to publish inventory reserved event for order: {}", event.getOrderId(), e);
@@ -167,7 +162,7 @@ public class MessagePublisher {
      */
     public void publishShippingPreparedToOrderService(ShippingPreparedEvent event) {
         try {
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "shipping.prepared", event);
+            messageBrokerService.publishShippingPreparedToOrderService(event);
             log.info("Published shipping prepared event for order: {}", event.getOrderId());
         } catch (Exception e) {
             log.error("Failed to publish shipping prepared event for order: {}", event.getOrderId(), e);
@@ -186,7 +181,7 @@ public class MessagePublisher {
                 "SAGA_FAILURE", 
                 LocalDateTime.now()
             );
-            rabbitTemplate.convertAndSend(orderExchange.getName(), "order.failed", event);
+            messageBrokerService.publishOrderFailed(orderId, reason, failureStep);
             log.info("Published order failed event for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to publish order failed event for order: {}", orderId, e);

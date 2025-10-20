@@ -467,4 +467,222 @@ public class SagaOrchestratorService {
             default -> log.warn("Unknown step for retry: {}", saga.getCurrentStep());
         }
     }
+
+    /**
+     * Handle order status changed event from Order Service
+     */
+    @Transactional
+    public void handleOrderStatusChanged(OrderStatusChangedEvent event) {
+        log.info("Handling order status change for order: {} from {} to {}", 
+                event.getOrderId(), event.getPreviousStatus(), event.getNewStatus());
+
+        Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(UUID.fromString(event.getOrderId()));
+        if (sagaOpt.isEmpty()) {
+            log.info("No saga found for order: {}, status change may be external", event.getOrderId());
+            return;
+        }
+
+        OrderProcessingSaga saga = sagaOpt.get();
+        
+        // Log status change for audit trail
+        log.info("Saga {} - Order status changed: {} -> {} by {} (reason: {})", 
+                saga.getId(), event.getPreviousStatus(), event.getNewStatus(), 
+                event.getUpdatedBy(), event.getReason());
+        
+        // Update saga based on new status
+        switch (event.getNewStatus().toLowerCase()) {
+            case "cancelled":
+                handleOrderCancelledFromStatus(saga, event);
+                break;
+            case "shipped":
+                handleOrderShippedFromStatus(saga, event);
+                break;
+            case "delivered":
+                handleOrderDeliveredFromStatus(saga, event);
+                break;
+            default:
+                log.debug("Status change to {} does not require saga update", event.getNewStatus());
+        }
+    }
+
+    /**
+     * Handle order cancelled event from Order Service
+     * Triggers compensation/rollback of saga
+     */
+    @Transactional
+    public void handleOrderCancelled(OrderStatusChangedEvent event) {
+        log.info("Handling order cancellation for order: {}", event.getOrderId());
+
+        Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(UUID.fromString(event.getOrderId()));
+        if (sagaOpt.isEmpty()) {
+            log.warn("No saga found for cancelled order: {}", event.getOrderId());
+            return;
+        }
+
+        OrderProcessingSaga saga = sagaOpt.get();
+        
+        // Check if saga is already compensating or compensated
+        if (saga.getStatus() == OrderProcessingSaga.SagaStatus.COMPENSATING ||
+            saga.getStatus() == OrderProcessingSaga.SagaStatus.COMPENSATED) {
+            log.info("Saga {} is already being compensated", saga.getId());
+            return;
+        }
+
+        log.info("Initiating compensation for cancelled order: {}", event.getOrderId());
+        saga.setStatus(OrderProcessingSaga.SagaStatus.COMPENSATING);
+        saga.setErrorMessage("Order cancelled: " + (event.getReason() != null ? event.getReason() : "User requested"));
+        sagaRepository.save(saga);
+
+        // Start compensation process
+        try {
+            compensateSaga(saga);
+            metricsService.recordSagaCancelled(event.getOrderNumber());
+        } catch (Exception e) {
+            log.error("Failed to compensate saga {} for cancelled order: {}", saga.getId(), event.getOrderId(), e);
+            saga.setStatus(OrderProcessingSaga.SagaStatus.FAILED);
+            saga.setErrorMessage("Compensation failed: " + e.getMessage());
+            sagaRepository.save(saga);
+        }
+    }
+
+    /**
+     * Handle order shipped event from Order Service
+     * Updates saga to reflect shipping has been completed
+     */
+    @Transactional
+    public void handleOrderShipped(OrderStatusChangedEvent event) {
+        log.info("Handling order shipped for order: {}", event.getOrderId());
+
+        Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(UUID.fromString(event.getOrderId()));
+        if (sagaOpt.isEmpty()) {
+            log.info("No saga found for shipped order: {}, may have been completed already", event.getOrderId());
+            return;
+        }
+
+        OrderProcessingSaga saga = sagaOpt.get();
+        
+        // Update saga to reflect shipping is complete
+        if (saga.getStatus() != OrderProcessingSaga.SagaStatus.COMPLETED) {
+            saga.setStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
+            saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.COMPLETED);
+            sagaRepository.save(saga);
+            
+            log.info("Updated saga {} to COMPLETED due to order shipment", saga.getId());
+            metricsService.recordSagaCompleted(event.getOrderNumber());
+        }
+    }
+
+    /**
+     * Handle order delivered event from Order Service
+     * Marks saga as fully completed and ready for archival
+     */
+    @Transactional
+    public void handleOrderDelivered(OrderStatusChangedEvent event) {
+        log.info("Handling order delivered for order: {}", event.getOrderId());
+
+        Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(UUID.fromString(event.getOrderId()));
+        if (sagaOpt.isEmpty()) {
+            log.info("No saga found for delivered order: {}, may have been completed already", event.getOrderId());
+            return;
+        }
+
+        OrderProcessingSaga saga = sagaOpt.get();
+        
+        // Mark saga as completed if not already
+        if (saga.getStatus() != OrderProcessingSaga.SagaStatus.COMPLETED) {
+            saga.setStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
+            saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.COMPLETED);
+            saga.markCompleted();
+            sagaRepository.save(saga);
+            
+            log.info("Marked saga {} as COMPLETED due to order delivery", saga.getId());
+            metricsService.recordSagaCompleted(event.getOrderNumber());
+        }
+        
+        // Saga can now be archived or cleaned up
+        log.info("Saga {} for delivered order {} is complete and can be archived", 
+                saga.getId(), event.getOrderId());
+    }
+
+    /**
+     * Handle order deleted event from Order Service
+     * Cleans up saga record if it exists
+     */
+    @Transactional
+    public void handleOrderDeleted(OrderDeletedEvent event) {
+        log.info("Handling order deletion for order: {}", event.getOrderId());
+
+        Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(UUID.fromString(event.getOrderId()));
+        if (sagaOpt.isEmpty()) {
+            log.info("No saga found for deleted order: {}", event.getOrderId());
+            return;
+        }
+
+        OrderProcessingSaga saga = sagaOpt.get();
+        
+        // If saga is in progress, trigger compensation first
+        if (saga.getStatus() == OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING ||
+            saga.getStatus() == OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING ||
+            saga.getStatus() == OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING) {
+            
+            log.warn("Saga {} is in progress, compensating before deletion", saga.getId());
+            saga.setStatus(OrderProcessingSaga.SagaStatus.COMPENSATING);
+            saga.setErrorMessage("Order deleted: " + (event.getReason() != null ? event.getReason() : "User requested"));
+            sagaRepository.save(saga);
+            
+            try {
+                compensateSaga(saga);
+            } catch (Exception e) {
+                log.error("Failed to compensate saga {} before deletion", saga.getId(), e);
+            }
+        }
+        
+        // Archive or delete saga record
+        log.info("Deleting saga {} for deleted order {}", saga.getId(), event.getOrderId());
+        sagaRepository.delete(saga);
+        
+        metricsService.recordSagaDeleted(event.getOrderNumber());
+    }
+
+    /**
+     * Helper method to handle status change to cancelled
+     */
+    private void handleOrderCancelledFromStatus(OrderProcessingSaga saga, OrderStatusChangedEvent event) {
+        if (saga.getStatus() != OrderProcessingSaga.SagaStatus.COMPENSATING &&
+            saga.getStatus() != OrderProcessingSaga.SagaStatus.COMPENSATED) {
+            
+            saga.setStatus(OrderProcessingSaga.SagaStatus.COMPENSATING);
+            saga.setErrorMessage("Order cancelled via status change: " + event.getReason());
+            sagaRepository.save(saga);
+            
+            try {
+                compensateSaga(saga);
+            } catch (Exception e) {
+                log.error("Failed to compensate saga {} after status change to cancelled", saga.getId(), e);
+            }
+        }
+    }
+
+    /**
+     * Helper method to handle status change to shipped
+     */
+    private void handleOrderShippedFromStatus(OrderProcessingSaga saga, OrderStatusChangedEvent event) {
+        if (saga.getStatus() != OrderProcessingSaga.SagaStatus.COMPLETED) {
+            saga.setStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
+            saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.COMPLETED);
+            sagaRepository.save(saga);
+        }
+    }
+
+    /**
+     * Helper method to handle status change to delivered
+     */
+    private void handleOrderDeliveredFromStatus(OrderProcessingSaga saga, OrderStatusChangedEvent event) {
+        if (saga.getStatus() != OrderProcessingSaga.SagaStatus.COMPLETED) {
+            saga.setStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
+            saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.COMPLETED);
+            saga.markCompleted();
+            sagaRepository.save(saga);
+        }
+    }
 }

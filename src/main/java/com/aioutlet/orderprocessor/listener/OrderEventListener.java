@@ -134,4 +134,131 @@ public class OrderEventListener {
             log.error("Error processing ShippingFailedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
         }
     }
+
+    /**
+     * Handle order updated event (status changes)
+     */
+    @RabbitListener(queues = "${messaging.queue.order-processor}")
+    public void handleOrderUpdatedEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = event.getCorrelationId();
+        if (correlationId == null || correlationId.isEmpty()) {
+            correlationId = (String) headers.get("X-Correlation-ID");
+        }
+        
+        CorrelationIdUtil.setCorrelationId(correlationId);
+        
+        try {
+            log.info("Received OrderStatusChangedEvent for order: {}, status: {} -> {} [CorrelationId: {}]", 
+                    event.getOrderId(), event.getPreviousStatus(), event.getNewStatus(), correlationId);
+            
+            sagaOrchestratorService.handleOrderStatusChanged(event);
+        } catch (Exception e) {
+            log.error("Error processing OrderStatusChangedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
+        }
+    }
+
+    /**
+     * Handle order cancelled event
+     */
+    @RabbitListener(queues = "${messaging.queue.order-processor}")
+    public void handleOrderCancelledEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = event.getCorrelationId();
+        if (correlationId == null || correlationId.isEmpty()) {
+            correlationId = (String) headers.get("X-Correlation-ID");
+        }
+        
+        CorrelationIdUtil.setCorrelationId(correlationId);
+        
+        try {
+            log.info("Received OrderCancelledEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
+            // Trigger compensation/rollback for cancelled orders
+            sagaOrchestratorService.handleOrderCancelled(event);
+        } catch (Exception e) {
+            log.error("Error processing OrderCancelledEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
+        }
+    }
+
+    /**
+     * Handle order shipped event
+     */
+    @RabbitListener(queues = "${messaging.queue.order-processor}")
+    public void handleOrderShippedEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = event.getCorrelationId();
+        if (correlationId == null || correlationId.isEmpty()) {
+            correlationId = (String) headers.get("X-Correlation-ID");
+        }
+        
+        CorrelationIdUtil.setCorrelationId(correlationId);
+        
+        try {
+            log.info("Received OrderShippedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
+            sagaOrchestratorService.handleOrderShipped(event);
+        } catch (Exception e) {
+            log.error("Error processing OrderShippedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
+        }
+    }
+
+    /**
+     * Handle order delivered event
+     */
+    @RabbitListener(queues = "${messaging.queue.order-processor}")
+    public void handleOrderDeliveredEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = event.getCorrelationId();
+        if (correlationId == null || correlationId.isEmpty()) {
+            correlationId = (String) headers.get("X-Correlation-ID");
+        }
+        
+        CorrelationIdUtil.setCorrelationId(correlationId);
+        
+        try {
+            log.info("Received OrderDeliveredEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
+            sagaOrchestratorService.handleOrderDelivered(event);
+        } catch (Exception e) {
+            log.error("Error processing OrderDeliveredEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
+        }
+    }
+
+    /**
+     * Handle order deleted event
+     */
+    @RabbitListener(queues = "${messaging.queue.order-processor}")
+    public void handleOrderDeletedEvent(OrderDeletedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = event.getCorrelationId();
+        if (correlationId == null || correlationId.isEmpty()) {
+            correlationId = (String) headers.get("X-Correlation-ID");
+        }
+        
+        CorrelationIdUtil.setCorrelationId(correlationId);
+        
+        try {
+            log.info("Received OrderDeletedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
+            // Clean up any associated saga records
+            sagaOrchestratorService.handleOrderDeleted(event);
+        } catch (Exception e) {
+            log.error("Error processing OrderDeletedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
+        }
+    }
 }
