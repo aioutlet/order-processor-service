@@ -27,15 +27,7 @@ public class OrderEventListener {
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
     public void handleOrderCreatedEvent(OrderCreatedEvent event, @Header Map<String, Object> headers) {
-        String correlationId = event.getCorrelationId();
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = (String) headers.get("X-Correlation-ID");
-        }
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = "unknown";
-        }
-        
-        // Set correlation ID using utility
+        String correlationId = extractCorrelationId(event.getCorrelationId(), headers);
         CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
@@ -55,13 +47,20 @@ public class OrderEventListener {
      * Handle payment processed event
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
-    public void handlePaymentProcessedEvent(PaymentProcessedEvent event) {
-        log.info("Received PaymentProcessedEvent for order: {}", event.getOrderId());
+    public void handlePaymentProcessedEvent(PaymentProcessedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = extractCorrelationId(null, headers);
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
+            log.info("Received PaymentProcessedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
             sagaOrchestratorService.handlePaymentProcessed(event);
         } catch (Exception e) {
-            log.error("Error processing PaymentProcessedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
+            log.error("Error processing PaymentProcessedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
@@ -69,13 +68,20 @@ public class OrderEventListener {
      * Handle payment failed event
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
-    public void handlePaymentFailedEvent(PaymentFailedEvent event) {
-        log.info("Received PaymentFailedEvent for order: {}", event.getOrderId());
+    public void handlePaymentFailedEvent(PaymentFailedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = extractCorrelationId(null, headers);
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
+            log.info("Received PaymentFailedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
             sagaOrchestratorService.handlePaymentFailed(event);
         } catch (Exception e) {
-            log.error("Error processing PaymentFailedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
+            log.error("Error processing PaymentFailedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
@@ -83,27 +89,41 @@ public class OrderEventListener {
      * Handle inventory reserved event
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
-    public void handleInventoryReservedEvent(InventoryReservedEvent event) {
-        log.info("Received InventoryReservedEvent for order: {}", event.getOrderId());
+    public void handleInventoryReservedEvent(InventoryReservedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = extractCorrelationId(null, headers);
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
+            log.info("Received InventoryReservedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
             sagaOrchestratorService.handleInventoryReserved(event);
         } catch (Exception e) {
-            log.error("Error processing InventoryReservedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
+            log.error("Error processing InventoryReservedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
     /**
-     * Handle inventory reservation failed event
+     * Handle inventory failed event
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
-    public void handleInventoryFailedEvent(InventoryFailedEvent event) {
-        log.info("Received InventoryFailedEvent for order: {}", event.getOrderId());
+    public void handleInventoryFailedEvent(InventoryFailedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = extractCorrelationId(null, headers);
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
+            log.info("Received InventoryFailedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
             sagaOrchestratorService.handleInventoryFailed(event);
         } catch (Exception e) {
-            log.error("Error processing InventoryFailedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
+            log.error("Error processing InventoryFailedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
@@ -111,13 +131,20 @@ public class OrderEventListener {
      * Handle shipping prepared event
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
-    public void handleShippingPreparedEvent(ShippingPreparedEvent event) {
-        log.info("Received ShippingPreparedEvent for order: {}", event.getOrderId());
+    public void handleShippingPreparedEvent(ShippingPreparedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = extractCorrelationId(null, headers);
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
+            log.info("Received ShippingPreparedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
             sagaOrchestratorService.handleShippingPrepared(event);
         } catch (Exception e) {
-            log.error("Error processing ShippingPreparedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
+            log.error("Error processing ShippingPreparedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
@@ -125,26 +152,29 @@ public class OrderEventListener {
      * Handle shipping failed event
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
-    public void handleShippingFailedEvent(ShippingFailedEvent event) {
-        log.info("Received ShippingFailedEvent for order: {}", event.getOrderId());
+    public void handleShippingFailedEvent(ShippingFailedEvent event, @Header Map<String, Object> headers) {
+        String correlationId = extractCorrelationId(null, headers);
+        CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
+            log.info("Received ShippingFailedEvent for order: {} [CorrelationId: {}]", 
+                    event.getOrderId(), correlationId);
+            
             sagaOrchestratorService.handleShippingFailed(event);
         } catch (Exception e) {
-            log.error("Error processing ShippingFailedEvent for order {}: {}", event.getOrderId(), e.getMessage(), e);
+            log.error("Error processing ShippingFailedEvent for order {} [CorrelationId: {}]: {}", 
+                    event.getOrderId(), correlationId, e.getMessage(), e);
+        } finally {
+            CorrelationIdUtil.clearCorrelationId();
         }
     }
 
     /**
-     * Handle order updated event (status changes)
+     * Handle order updated event (general status changes)
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
     public void handleOrderUpdatedEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
-        String correlationId = event.getCorrelationId();
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = (String) headers.get("X-Correlation-ID");
-        }
-        
+        String correlationId = extractCorrelationId(event.getCorrelationId(), headers);
         CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
@@ -165,11 +195,7 @@ public class OrderEventListener {
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
     public void handleOrderCancelledEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
-        String correlationId = event.getCorrelationId();
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = (String) headers.get("X-Correlation-ID");
-        }
-        
+        String correlationId = extractCorrelationId(event.getCorrelationId(), headers);
         CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
@@ -191,11 +217,7 @@ public class OrderEventListener {
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
     public void handleOrderShippedEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
-        String correlationId = event.getCorrelationId();
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = (String) headers.get("X-Correlation-ID");
-        }
-        
+        String correlationId = extractCorrelationId(event.getCorrelationId(), headers);
         CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
@@ -216,11 +238,7 @@ public class OrderEventListener {
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
     public void handleOrderDeliveredEvent(OrderStatusChangedEvent event, @Header Map<String, Object> headers) {
-        String correlationId = event.getCorrelationId();
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = (String) headers.get("X-Correlation-ID");
-        }
-        
+        String correlationId = extractCorrelationId(event.getCorrelationId(), headers);
         CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
@@ -241,11 +259,7 @@ public class OrderEventListener {
      */
     @RabbitListener(queues = "${messaging.queue.order-processor}")
     public void handleOrderDeletedEvent(OrderDeletedEvent event, @Header Map<String, Object> headers) {
-        String correlationId = event.getCorrelationId();
-        if (correlationId == null || correlationId.isEmpty()) {
-            correlationId = (String) headers.get("X-Correlation-ID");
-        }
-        
+        String correlationId = extractCorrelationId(event.getCorrelationId(), headers);
         CorrelationIdUtil.setCorrelationId(correlationId);
         
         try {
@@ -260,5 +274,36 @@ public class OrderEventListener {
         } finally {
             CorrelationIdUtil.clearCorrelationId();
         }
+    }
+
+    /**
+     * Helper method to extract correlation ID from event or headers
+     * 
+     * @param eventCorrelationId Correlation ID from event object
+     * @param headers Message headers
+     * @return Correlation ID or "unknown" if not found
+     */
+    private String extractCorrelationId(String eventCorrelationId, Map<String, Object> headers) {
+        // Try event correlation ID first
+        if (eventCorrelationId != null && !eventCorrelationId.isEmpty()) {
+            return eventCorrelationId;
+        }
+        
+        // Try headers
+        if (headers != null) {
+            Object headerValue = headers.get("X-Correlation-ID");
+            if (headerValue != null) {
+                return headerValue.toString();
+            }
+            
+            // Try lowercase variant
+            headerValue = headers.get("x-correlation-id");
+            if (headerValue != null) {
+                return headerValue.toString();
+            }
+        }
+        
+        // Default to "unknown"
+        return "unknown";
     }
 }
