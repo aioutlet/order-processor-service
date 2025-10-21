@@ -5,6 +5,7 @@ import com.aioutlet.orderprocessor.model.events.OrderCreatedEvent;
 import com.aioutlet.orderprocessor.model.events.PaymentProcessedEvent;
 import com.aioutlet.orderprocessor.model.events.PaymentFailedEvent;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,10 +32,10 @@ class SagaOrchestratorServiceTest {
     private MessagePublisher messagePublisher;
 
     @Mock
-    private ExternalServiceClient externalServiceClient;
+    private SagaMetricsService metricsService;
 
     @Mock
-    private SagaMetricsService metricsService;
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private SagaOrchestratorService sagaOrchestratorService;

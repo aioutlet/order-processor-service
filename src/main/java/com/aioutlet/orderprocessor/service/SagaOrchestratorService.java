@@ -3,6 +3,8 @@ package com.aioutlet.orderprocessor.service;
 import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.model.events.*;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,8 +27,8 @@ public class SagaOrchestratorService {
 
     private final OrderProcessingSagaRepository sagaRepository;
     private final MessagePublisher messagePublisher;
-    private final ExternalServiceClient externalServiceClient;
     private final SagaMetricsService metricsService;
+    private final ObjectMapper objectMapper;
 
     @Value("${saga.retry.maxAttempts:3}")
     private int maxRetryAttempts;
@@ -53,6 +55,23 @@ public class SagaOrchestratorService {
         saga.setCurrency(orderCreatedEvent.getCurrency());
         saga.setStatus(OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING);
         saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.PAYMENT_PROCESSING);
+
+        // Store order items and addresses from event (event-driven architecture)
+        // This eliminates the need for HTTP calls to Order Service
+        try {
+            if (orderCreatedEvent.getItems() != null && !orderCreatedEvent.getItems().isEmpty()) {
+                saga.setOrderItems(objectMapper.writeValueAsString(orderCreatedEvent.getItems()));
+            }
+            if (orderCreatedEvent.getShippingAddress() != null) {
+                saga.setShippingAddress(objectMapper.writeValueAsString(orderCreatedEvent.getShippingAddress()));
+            }
+            if (orderCreatedEvent.getBillingAddress() != null) {
+                saga.setBillingAddress(objectMapper.writeValueAsString(orderCreatedEvent.getBillingAddress()));
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize order data for saga", e);
+            throw new RuntimeException("Failed to store order data in saga", e);
+        }
 
         saga = sagaRepository.save(saga);
         log.info("Created saga {} for order: {}", saga.getId(), orderCreatedEvent.getOrderId());
@@ -353,18 +372,34 @@ public class SagaOrchestratorService {
 
     /**
      * Reserve inventory for the order
+     * Note: Order items should be included in the OrderCreatedEvent
+     * This maintains event-driven architecture without direct service calls
      */
     private void reserveInventory(OrderProcessingSaga saga) {
         log.info("Reserving inventory for saga: {}", saga.getId());
 
-        // Fetch order items and create inventory reservation event
-        List<InventoryReservationEvent.InventoryItem> items = 
-                externalServiceClient.getOrderItems(saga.getOrderId());
+        // Deserialize order items from saga (stored from OrderCreatedEvent)
+        // This maintains event-driven architecture without HTTP calls
+        List<InventoryItem> items;
+        try {
+            if (saga.getOrderItems() != null) {
+                items = objectMapper.readValue(
+                    saga.getOrderItems(), 
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, InventoryItem.class)
+                );
+            } else {
+                log.warn("No order items found in saga {}, using empty list", saga.getId());
+                items = java.util.Collections.emptyList();
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize order items from saga", e);
+            throw new RuntimeException("Failed to read order items from saga", e);
+        }
 
         InventoryReservationEvent inventoryEvent = new InventoryReservationEvent(
-                saga.getOrderId(),
-                items,
-                LocalDateTime.now()
+            saga.getOrderId(),
+            items,
+            LocalDateTime.now()
         );
 
         messagePublisher.publishInventoryReservation(inventoryEvent);

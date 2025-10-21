@@ -54,6 +54,15 @@ public class OrderProcessingSaga {
     @Column(name = "shipping_id")
     private String shippingId;
 
+    @Column(name = "order_items", columnDefinition = "jsonb")
+    private String orderItems;
+
+    @Column(name = "shipping_address", columnDefinition = "jsonb")
+    private String shippingAddress;
+
+    @Column(name = "billing_address", columnDefinition = "jsonb")
+    private String billingAddress;
+
     @Column(name = "error_message")
     private String errorMessage;
 
