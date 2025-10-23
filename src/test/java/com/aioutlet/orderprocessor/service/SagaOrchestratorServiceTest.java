@@ -168,7 +168,7 @@ class SagaOrchestratorServiceTest {
         // Assert
         verify(sagaRepository).findByOrderId(orderId);
         verify(sagaRepository).save(testSaga);
-        verify(messagePublisher).publishOrderCompleted(orderId);
+        verify(messagePublisher).publishOrderStatusChanged(eq(orderId), anyString(), anyString(), anyString(), eq("COMPLETED"), anyString(), anyString());
         assertTrue(testSaga.isCompleted());
         assertNotNull(testSaga.getCompletedAt());
     }

@@ -104,7 +104,7 @@ class OrderEventListenerTest {
         event.setAmount(new BigDecimal("99.99"));
 
         // Act
-        orderEventListener.handlePaymentProcessedEvent(event);
+        orderEventListener.handlePaymentProcessedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handlePaymentProcessed(event);
@@ -121,7 +121,7 @@ class OrderEventListenerTest {
         doThrow(new RuntimeException("Payment processing error")).when(sagaOrchestratorService).handlePaymentProcessed(event);
 
         // Act
-        orderEventListener.handlePaymentProcessedEvent(event);
+        orderEventListener.handlePaymentProcessedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handlePaymentProcessed(event);
@@ -136,7 +136,7 @@ class OrderEventListenerTest {
         event.setErrorCode("INSUFFICIENT_FUNDS");
 
         // Act
-        orderEventListener.handlePaymentFailedEvent(event);
+        orderEventListener.handlePaymentFailedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handlePaymentFailed(event);
@@ -153,7 +153,7 @@ class OrderEventListenerTest {
         doThrow(new RuntimeException("Payment failure processing error")).when(sagaOrchestratorService).handlePaymentFailed(event);
 
         // Act
-        orderEventListener.handlePaymentFailedEvent(event);
+        orderEventListener.handlePaymentFailedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handlePaymentFailed(event);
@@ -167,7 +167,7 @@ class OrderEventListenerTest {
         event.setReservationId("RES-456");
 
         // Act
-        orderEventListener.handleInventoryReservedEvent(event);
+        orderEventListener.handleInventoryReservedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleInventoryReserved(event);
@@ -183,7 +183,7 @@ class OrderEventListenerTest {
         doThrow(new RuntimeException("Inventory processing error")).when(sagaOrchestratorService).handleInventoryReserved(event);
 
         // Act
-        orderEventListener.handleInventoryReservedEvent(event);
+        orderEventListener.handleInventoryReservedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleInventoryReserved(event);
@@ -198,7 +198,7 @@ class OrderEventListenerTest {
         event.setErrorCode("OUT_OF_STOCK");
 
         // Act
-        orderEventListener.handleInventoryFailedEvent(event);
+        orderEventListener.handleInventoryFailedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleInventoryFailed(event);
@@ -212,10 +212,10 @@ class OrderEventListenerTest {
         event.setReason("Out of stock");
         event.setErrorCode("OUT_OF_STOCK");
 
-        doThrow(new RuntimeException("Inventory failure processing error")).when(sagaOrchestratorService).handleInventoryFailed(event);
+        doThrow(new RuntimeException("Inventory processing error")).when(sagaOrchestratorService).handleInventoryFailed(event);
 
         // Act
-        orderEventListener.handleInventoryFailedEvent(event);
+        orderEventListener.handleInventoryFailedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleInventoryFailed(event);
@@ -230,7 +230,7 @@ class OrderEventListenerTest {
         event.setTrackingNumber("TRK-123456");
 
         // Act
-        orderEventListener.handleShippingPreparedEvent(event);
+        orderEventListener.handleShippingPreparedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleShippingPrepared(event);
@@ -247,7 +247,7 @@ class OrderEventListenerTest {
         doThrow(new RuntimeException("Shipping processing error")).when(sagaOrchestratorService).handleShippingPrepared(event);
 
         // Act
-        orderEventListener.handleShippingPreparedEvent(event);
+        orderEventListener.handleShippingPreparedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleShippingPrepared(event);
@@ -262,7 +262,7 @@ class OrderEventListenerTest {
         event.setErrorCode("ADDRESS_NOT_FOUND");
 
         // Act
-        orderEventListener.handleShippingFailedEvent(event);
+        orderEventListener.handleShippingFailedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleShippingFailed(event);
@@ -276,10 +276,10 @@ class OrderEventListenerTest {
         event.setReason("Address not found");
         event.setErrorCode("ADDRESS_NOT_FOUND");
 
-        doThrow(new RuntimeException("Shipping failure processing error")).when(sagaOrchestratorService).handleShippingFailed(event);
+        doThrow(new RuntimeException("Shipping processing error")).when(sagaOrchestratorService).handleShippingFailed(event);
 
         // Act
-        orderEventListener.handleShippingFailedEvent(event);
+        orderEventListener.handleShippingFailedEvent(event, new java.util.HashMap<>());
 
         // Assert
         verify(sagaOrchestratorService).handleShippingFailed(event);

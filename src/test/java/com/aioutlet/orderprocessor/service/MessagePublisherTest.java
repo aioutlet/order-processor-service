@@ -131,23 +131,37 @@ class MessagePublisherTest {
     }
 
     @Test
-    void publishOrderCompleted_ShouldSendMessageSuccessfully() {
+    void publishOrderStatusChanged_ShouldSendMessageSuccessfully() {
+        // Arrange
+        String orderNumber = "ORD-001";
+        String customerId = "CUST-123";
+        String previousStatus = "PROCESSING";
+        String newStatus = "COMPLETED";
+        String reason = "Order completed successfully";
+        String correlationId = UUID.randomUUID().toString();
+        
         // Act
-        messagePublisher.publishOrderCompleted(orderId);
+        messagePublisher.publishOrderStatusChanged(orderId, orderNumber, customerId, previousStatus, newStatus, reason, correlationId);
 
         // Assert
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("order.completed"), any(OrderCompletedEvent.class));
+        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("order.status.changed"), any(OrderStatusChangedEvent.class));
     }
 
     @Test
-    void publishOrderCompleted_WhenRabbitTemplateFails_ShouldThrowException() {
+    void publishOrderStatusChanged_WhenRabbitTemplateFails_ShouldThrowException() {
         // Arrange
+        String orderNumber = "ORD-001";
+        String customerId = "CUST-123";
+        String previousStatus = "PROCESSING";
+        String newStatus = "COMPLETED";
+        String reason = "Order completed successfully";
+        String correlationId = UUID.randomUUID().toString();
         doThrow(new RuntimeException("RabbitMQ connection error"))
                 .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
 
         // Act & Assert
-        assertThrows(RuntimeException.class, () -> messagePublisher.publishOrderCompleted(orderId));
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("order.completed"), any(OrderCompletedEvent.class));
+        assertThrows(RuntimeException.class, () -> messagePublisher.publishOrderStatusChanged(orderId, orderNumber, customerId, previousStatus, newStatus, reason, correlationId));
+        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("order.status.changed"), any(OrderStatusChangedEvent.class));
     }
 
     @Test

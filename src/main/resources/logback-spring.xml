@@ -69,7 +69,7 @@
     </appender>
 
     <!-- Root logger -->
-    <root level="INFO">
+    <root level="ERROR">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
         <appender-ref ref="OTEL"/>
@@ -77,23 +77,45 @@
         <!-- <appender-ref ref="JSON"/> -->
     </root>
 
-    <!-- Spring Boot specific logging -->
-    <logger name="org.springframework" level="INFO"/>
-    <logger name="com.aioutlet.orderprocessor" level="DEBUG"/>
+    <!-- Application logging - only show INFO and above -->
+    <logger name="com.aioutlet.orderprocessor" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="OTEL"/>
+    </logger>
+
+    <!-- Suppress all Spring Boot startup noise -->
+    <logger name="org.springframework" level="ERROR"/>
+    <logger name="org.springframework.boot" level="ERROR"/>
+    <logger name="org.springframework.boot.autoconfigure" level="ERROR"/>
+    <logger name="org.springframework.web" level="ERROR"/>
+    <logger name="org.springframework.data" level="ERROR"/>
+    <logger name="org.springframework.amqp" level="ERROR"/>
+    <logger name="org.springframework.security" level="ERROR"/>
+    <logger name="org.springframework.context" level="ERROR"/>
     
-    <!-- RabbitMQ logging -->
-    <logger name="org.springframework.amqp" level="INFO"/>
+    <!-- Suppress Hibernate noise -->
+    <logger name="org.hibernate" level="ERROR"/>
+    <logger name="org.hibernate.SQL" level="ERROR"/>
+    <logger name="org.hibernate.validator" level="ERROR"/>
+    <logger name="org.hibernate.type" level="ERROR"/>
     
-    <!-- Database logging -->
-    <logger name="org.hibernate.SQL" level="DEBUG"/>
-    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    <!-- Suppress database/connection pool noise -->
+    <logger name="com.zaxxer.hikari" level="ERROR"/>
+    <logger name="org.postgresql" level="ERROR"/>
+    <logger name="org.flywaydb" level="ERROR"/>
     
-    <!-- OpenTelemetry logging -->
-    <logger name="io.opentelemetry" level="INFO"/>
+    <!-- Suppress Tomcat noise -->
+    <logger name="org.apache.catalina" level="ERROR"/>
+    <logger name="org.apache.tomcat" level="ERROR"/>
+    <logger name="org.apache.coyote" level="ERROR"/>
+    
+    <!-- Suppress OpenTelemetry noise -->
+    <logger name="io.opentelemetry" level="ERROR"/>
     
     <!-- Reduce verbose tracing logs in development -->
     <springProfile name="development,local">
-        <logger name="io.opentelemetry" level="WARN"/>
+        <logger name="io.opentelemetry" level="ERROR"/>
     </springProfile>
     
 </configuration>

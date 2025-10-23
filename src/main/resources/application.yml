@@ -16,6 +16,7 @@ spring:
 
   # JPA configuration
   jpa:
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -77,10 +78,24 @@ spring:
   # Logging (override pattern defined in logback)
   logging:
     level:
+      root: ERROR
       com.aioutlet.orderprocessor: INFO
-      org.springframework.amqp: WARN
-      org.hibernate.SQL: WARN
-      io.opentelemetry: WARN
+      org.springframework: ERROR
+      org.springframework.amqp: ERROR
+      org.springframework.boot: ERROR
+      org.springframework.boot.autoconfigure: ERROR
+      org.springframework.web: ERROR
+      org.springframework.data: ERROR
+      org.springframework.security: ERROR
+      org.hibernate: ERROR
+      org.hibernate.SQL: ERROR
+      org.hibernate.validator: ERROR
+      org.flywaydb: ERROR
+      io.opentelemetry: ERROR
+      org.apache.tomcat: ERROR
+      org.apache.catalina: ERROR
+      org.postgresql: ERROR
+      com.zaxxer.hikari: ERROR
 
 # Application version
 application:
