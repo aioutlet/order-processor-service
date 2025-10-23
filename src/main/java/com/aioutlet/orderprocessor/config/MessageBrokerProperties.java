@@ -67,6 +67,7 @@ public class MessageBrokerProperties {
         private String orderShipped = "order.shipped";
         private String orderDelivered = "order.delivered";
         private String orderDeleted = "order.deleted";
+        private String orderStatusChanged = "order.status.changed";
         private String paymentProcessed = "payment.processed";
         private String paymentFailed = "payment.failed";
         private String inventoryReserved = "inventory.reserved";

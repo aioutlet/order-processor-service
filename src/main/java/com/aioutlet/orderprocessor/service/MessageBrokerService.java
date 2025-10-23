@@ -134,21 +134,10 @@ public class MessageBrokerService {
     }
 
     /**
-     * Publish order completed event
+     * Publish order status changed event
      */
-    public void publishOrderCompleted(Object orderId) throws Exception {
-        publish("order.completed", orderId);
-    }
-
-    /**
-     * Publish order failed event
-     */
-    public void publishOrderFailed(Object orderId, String reason, String failureStep) throws Exception {
-        Map<String, Object> event = new HashMap<>();
-        event.put("orderId", orderId);
-        event.put("reason", reason);
-        event.put("failureStep", failureStep);
-        publish("order.failed", event);
+    public void publishOrderStatusChanged(Object event) throws Exception {
+        publish(messageBrokerProperties.getRoutingKey().getOrderStatusChanged(), event);
     }
 
     /**

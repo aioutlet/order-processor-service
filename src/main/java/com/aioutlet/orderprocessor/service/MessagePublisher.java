@@ -65,18 +65,34 @@ public class MessagePublisher {
     }
 
     /**
-     * Publish order completed event
+     * Publish order status changed event to notify Order Service
      */
-    public void publishOrderCompleted(UUID orderId) {
+    public void publishOrderStatusChanged(UUID orderId, String orderNumber, String customerId, 
+                                          String previousStatus, String newStatus, 
+                                          String reason, String correlationId) {
         try {
-            OrderCompletedEvent event = new OrderCompletedEvent(orderId, LocalDateTime.now());
-            messageBrokerService.publishOrderCompleted(event);
-            log.info("Published order completed event for order: {}", orderId);
+            OrderStatusChangedEvent event = new OrderStatusChangedEvent(
+                orderId.toString(),
+                orderNumber,
+                customerId,
+                previousStatus,
+                newStatus,
+                LocalDateTime.now(),
+                "order-processor-service", // updatedBy
+                reason,
+                correlationId
+            );
+            messageBrokerService.publishOrderStatusChanged(event);
+            log.info("Published order status changed event: {} -> {} for order: {} [CorrelationId: {}]", 
+                    previousStatus, newStatus, orderId, correlationId);
         } catch (Exception e) {
-            log.error("Failed to publish order completed event for order: {}", orderId, e);
-            throw new RuntimeException("Failed to publish order completed event", e);
+            log.error("Failed to publish order status changed event for order: {} [CorrelationId: {}]", 
+                    orderId, correlationId, e);
+            throw new RuntimeException("Failed to publish order status changed event", e);
         }
     }
+
+
 
     /**
      * Publish shipping cancellation event
@@ -134,57 +150,48 @@ public class MessagePublisher {
     }
 
     /**
-     * Forward payment processed event to Order Service
+     * Helper method to publish order status change for saga completion
      */
-    public void publishPaymentProcessed(PaymentProcessedEvent event) {
-        try {
-            messageBrokerService.publishPaymentProcessed(event);
-            log.info("Published payment processed event for order: {}", event.getOrderId());
-        } catch (Exception e) {
-            log.error("Failed to publish payment processed event for order: {}", event.getOrderId(), e);
-        }
+    public void publishOrderCompletedStatus(UUID orderId, String orderNumber, String customerId, String correlationId) {
+        publishOrderStatusChanged(orderId, orderNumber, customerId, 
+                "Processing", "Completed", 
+                "Order processing saga completed successfully", correlationId);
     }
 
     /**
-     * Forward inventory reserved event to Order Service
+     * Helper method to publish order status change for saga failure
      */
-    public void publishInventoryReserved(InventoryReservedEvent event) {
-        try {
-            messageBrokerService.publishInventoryReserved(event);
-            log.info("Published inventory reserved event for order: {}", event.getOrderId());
-        } catch (Exception e) {
-            log.error("Failed to publish inventory reserved event for order: {}", event.getOrderId(), e);
-        }
+    public void publishOrderFailedStatus(UUID orderId, String orderNumber, String customerId, 
+                                         String reason, String correlationId) {
+        publishOrderStatusChanged(orderId, orderNumber, customerId, 
+                "Processing", "Failed", 
+                reason, correlationId);
     }
 
     /**
-     * Forward shipping prepared event to Order Service
+     * Helper method to publish order status change for payment processed
      */
-    public void publishShippingPreparedToOrderService(ShippingPreparedEvent event) {
-        try {
-            messageBrokerService.publishShippingPreparedToOrderService(event);
-            log.info("Published shipping prepared event for order: {}", event.getOrderId());
-        } catch (Exception e) {
-            log.error("Failed to publish shipping prepared event for order: {}", event.getOrderId(), e);
-        }
+    public void publishPaymentProcessedStatus(UUID orderId, String orderNumber, String customerId, String correlationId) {
+        publishOrderStatusChanged(orderId, orderNumber, customerId, 
+                "Pending", "PaymentProcessed", 
+                "Payment processed successfully", correlationId);
     }
 
     /**
-     * Publish order failed event to Order Service
+     * Helper method to publish order status change for inventory reserved
      */
-    public void publishOrderFailed(UUID orderId, String reason, String failureStep) {
-        try {
-            OrderFailedEvent event = new OrderFailedEvent(
-                orderId, 
-                reason, 
-                failureStep, 
-                "SAGA_FAILURE", 
-                LocalDateTime.now()
-            );
-            messageBrokerService.publishOrderFailed(orderId, reason, failureStep);
-            log.info("Published order failed event for order: {}", orderId);
-        } catch (Exception e) {
-            log.error("Failed to publish order failed event for order: {}", orderId, e);
-        }
+    public void publishInventoryReservedStatus(UUID orderId, String orderNumber, String customerId, String correlationId) {
+        publishOrderStatusChanged(orderId, orderNumber, customerId, 
+                "PaymentProcessed", "InventoryReserved", 
+                "Inventory reserved successfully", correlationId);
+    }
+
+    /**
+     * Helper method to publish order status change for shipping prepared
+     */
+    public void publishShippingPreparedStatus(UUID orderId, String orderNumber, String customerId, String correlationId) {
+        publishOrderStatusChanged(orderId, orderNumber, customerId, 
+                "InventoryReserved", "Shipped", 
+                "Shipping prepared successfully", correlationId);
     }
 }

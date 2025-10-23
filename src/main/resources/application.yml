@@ -3,6 +3,48 @@ spring:
   application:
     name: order-processor-service
 
+  # Profile configuration
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:order_processor_db}
+    username: ${DB_USER:orderprocessoruser}
+    password: ${DB_PASSWORD:order_processor_dev_pass_123}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA configuration
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 25
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+
+  # Flyway configuration
+  flyway:
+    locations: classpath:db/migration
+    enabled: true
+
+  # RabbitMQ configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:admin123}
+    virtual-host: /
+    connection-timeout: 30000
+    requested-heartbeat: 30
+
+  # Redis configuration
+  redis:
+    database: 6
+    timeout: 2000ms
+
   # JSON serialization
   jackson:
     default-property-inclusion: non_null
@@ -29,6 +71,8 @@ spring:
         enabled: true
       db:
         enabled: true
+      redis:
+        enabled: true
 
   # Logging (override pattern defined in logback)
   logging:
@@ -40,10 +84,37 @@ spring:
 
 # Application version
 application:
-  version: 1.0.0
+  version: ${APPLICATION_VERSION:1.0.0}
 
-# Rate limiting configuration
+# Server configuration
+server:
+  port: ${SERVER_PORT:8083}
+  servlet:
+    context-path: /api
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:8tDBDMcpxroHoHjXjk8xp/uAn8rzD4y8ZZremFkC4gI=}
+  # TODO: Enable issuer and audience validation when auth-service is updated to include these claims
+  # issuer: aioutlet-auth-service
+  # audience: aioutlet-order-processor-service
+
+# Security configuration
+security:
+  jwt:
+    issuer: aioutlet-auth-service
+    audience: aioutlet-order-processor-service
+
+# CORS configuration
 app:
+  cors:
+    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+    allow-credentials: true
+
+  # Rate limiting configuration
   rate-limit:
     enabled: true
     requests-per-minute: 100
@@ -51,26 +122,55 @@ app:
     saga-operations-per-minute: 50
     admin-operations-per-minute: 20
 
-# Tracing configuration
-tracing:
-  enabled: true
-  otlp:
-    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-  service:
-    name: ${OTEL_SERVICE_NAME:order-processor-service}
-    version: ${OTEL_SERVICE_VERSION:1.0.0}
-    instance-id: ${HOSTNAME:unknown}
+# Message Broker Configuration
+messaging:
+  provider: ${MESSAGE_BROKER_PROVIDER:RabbitMQ}
 
-# Server configuration
-server:
-  port: 8083
-  servlet:
-    context-path: /api
-  error:
-    include-message: always
-    include-binding-errors: always
+  exchange:
+    name: ${MESSAGE_BROKER_EXCHANGE:aioutlet.events}
+    type: topic
 
-# Custom configuration
+  queue:
+    order-processor: order-processor-queue
+
+  routing-key:
+    order-created: order.created
+    order-updated: order.updated
+    order-cancelled: order.cancelled
+    order-shipped: order.shipped
+    order-delivered: order.delivered
+    order-deleted: order.deleted
+    order-status-changed: order.status.changed
+    payment-processed: payment.processed
+    payment-failed: payment.failed
+    inventory-reserved: inventory.reserved
+    inventory-failed: inventory.failed
+    shipping-prepared: shipping.prepared
+    shipping-failed: shipping.failed
+
+  # RabbitMQ specific configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:admin123}
+    virtual-host: /
+
+  # Kafka specific configuration
+  kafka:
+    brokers: ${KAFKA_BROKERS:localhost:9092}
+    group-id: order-processor-service
+    topic: aioutlet.events
+
+  # Azure Service Bus specific configuration
+  azure-service-bus:
+    namespace: ${AZURE_SERVICEBUS_NAMESPACE:}
+    connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
+    use-managed-identity: true
+    topic-name: aioutlet-events
+    subscription-name: order-processor-subscription
+
+# Saga Configuration
 saga:
   retry:
     maxAttempts: 3
@@ -83,3 +183,23 @@ saga:
   scheduler:
     stuck-sagas-rate: 900000 # 15 minutes
     retry-sagas-rate: 300000 # 5 minutes
+
+# Tracing configuration
+tracing:
+  enabled: true
+  otlp:
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  service:
+    name: ${OTEL_SERVICE_NAME:order-processor-service}
+    version: ${OTEL_SERVICE_VERSION:1.0.0}
+    instance-id: ${HOSTNAME:unknown}
+
+# Management configuration
+management:
+  health:
+    db:
+      enabled: true
+    rabbit:
+      enabled: true
+    redis:
+      enabled: true

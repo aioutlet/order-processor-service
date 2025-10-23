@@ -2,6 +2,7 @@ package com.aioutlet.orderprocessor.service;
 
 import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.model.events.*;
+import com.aioutlet.orderprocessor.model.events.InventoryReservationEvent.InventoryItem;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -109,8 +110,13 @@ public class SagaOrchestratorService {
         saga = sagaRepository.save(saga);
         log.info("Updated saga {} status to INVENTORY_PROCESSING", saga.getId());
 
-        // Notify Order Service of payment completion
-        messagePublisher.publishPaymentProcessed(paymentProcessedEvent);
+        // Notify Order Service of payment completion via OrderStatusChangedEvent
+        messagePublisher.publishPaymentProcessedStatus(
+            saga.getOrderId(), 
+            saga.getOrderNumber(), 
+            saga.getCustomerId(), 
+            paymentProcessedEvent.getCorrelationId()
+        );
 
         // Proceed to inventory reservation
         try {
@@ -181,8 +187,13 @@ public class SagaOrchestratorService {
         saga = sagaRepository.save(saga);
         log.info("Updated saga {} status to SHIPPING_PROCESSING", saga.getId());
 
-        // Notify Order Service of inventory reservation
-        messagePublisher.publishInventoryReserved(inventoryReservedEvent);
+        // Notify Order Service of inventory reservation via OrderStatusChangedEvent
+        messagePublisher.publishInventoryReservedStatus(
+            saga.getOrderId(), 
+            saga.getOrderNumber(), 
+            saga.getCustomerId(), 
+            inventoryReservedEvent.getCorrelationId()
+        );
 
         // Proceed to shipping preparation
         try {
@@ -251,11 +262,21 @@ public class SagaOrchestratorService {
         sagaRepository.save(saga);
         log.info("Successfully completed saga {} for order: {}", saga.getId(), shippingPreparedEvent.getOrderId());
         
-        // Notify Order Service of shipping preparation
-        messagePublisher.publishShippingPreparedToOrderService(shippingPreparedEvent);
+        // Notify Order Service of shipping preparation via OrderStatusChangedEvent
+        messagePublisher.publishShippingPreparedStatus(
+            saga.getOrderId(), 
+            saga.getOrderNumber(), 
+            saga.getCustomerId(), 
+            shippingPreparedEvent.getCorrelationId()
+        );
         
-        // Publish order completed event
-        messagePublisher.publishOrderCompleted(shippingPreparedEvent.getOrderId());
+        // Publish order completed status
+        messagePublisher.publishOrderCompletedStatus(
+            saga.getOrderId(),
+            saga.getOrderNumber(),
+            saga.getCustomerId(),
+            shippingPreparedEvent.getCorrelationId()
+        );
     }
 
     /**
@@ -309,8 +330,13 @@ public class SagaOrchestratorService {
         
         log.info("Successfully completed saga {} for order: {}", saga.getId(), orderId);
         
-        // Publish order completed event
-        messagePublisher.publishOrderCompleted(orderId);
+        // Publish order completed status via OrderStatusChangedEvent
+        messagePublisher.publishOrderCompletedStatus(
+            saga.getOrderId(),
+            saga.getOrderNumber(),
+            saga.getCustomerId(),
+            saga.getId().toString() // Use saga ID as correlation ID
+        );
     }
 
     /**
@@ -437,9 +463,15 @@ public class SagaOrchestratorService {
         saga.setStatus(OrderProcessingSaga.SagaStatus.COMPENSATED);
         sagaRepository.save(saga);
         
-        // Notify Order Service of order failure
+        // Notify Order Service of order failure via OrderStatusChangedEvent
         String failureStep = determineFailureStep(saga);
-        messagePublisher.publishOrderFailed(saga.getOrderId(), saga.getErrorMessage(), failureStep);
+        messagePublisher.publishOrderFailedStatus(
+            saga.getOrderId(),
+            saga.getOrderNumber(),
+            saga.getCustomerId(),
+            String.format("Saga compensation completed. Failure at %s: %s", failureStep, saga.getErrorMessage()),
+            saga.getId().toString() // Use saga ID as correlation ID
+        );
         
         log.info("Completed compensation for saga: {}", saga.getId());
     }

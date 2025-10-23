@@ -20,6 +20,7 @@ public class PaymentProcessedEvent {
     private String paymentId;
     private BigDecimal amount;
     private String currency;
+    private String correlationId;
     
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime processedAt;

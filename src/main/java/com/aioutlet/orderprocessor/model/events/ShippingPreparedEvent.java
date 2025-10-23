@@ -20,6 +20,7 @@ public class ShippingPreparedEvent {
     private String trackingNumber;
     private String carrierName;
     private String shippingMethod;
+    private String correlationId;
     
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime preparedAt;
