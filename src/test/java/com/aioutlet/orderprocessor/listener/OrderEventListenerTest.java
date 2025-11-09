@@ -1,5 +1,6 @@
 package com.aioutlet.orderprocessor.listener;
 
+import com.aioutlet.orderprocessor.model.MessageWrapper;
 import com.aioutlet.orderprocessor.model.events.*;
 import com.aioutlet.orderprocessor.service.SagaOrchestratorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,10 +42,24 @@ class OrderEventListenerTest {
         orderId = UUID.randomUUID();
         customerId = UUID.randomUUID();
         correlationId = "test-correlation-123";
+        // Register Java 8 time module for LocalDateTime serialization
+        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
     }
 
     private Message createMessage(Object event, String routingKey) throws Exception {
-        byte[] body = objectMapper.writeValueAsBytes(event);
+        byte[] body;
+        if (routingKey.equals("order.created")) {
+            // OrderCreatedEvent needs to be wrapped in MessageWrapper
+            MessageWrapper wrapper = new MessageWrapper();
+            wrapper.setId(UUID.randomUUID().toString());
+            wrapper.setTopic(routingKey);
+            wrapper.setData(objectMapper.convertValue(event, Map.class));
+            wrapper.setTimestamp(java.time.Instant.now());
+            wrapper.setCorrelationId(((OrderCreatedEvent)event).getCorrelationId());
+            body = objectMapper.writeValueAsBytes(wrapper);
+        } else {
+            body = objectMapper.writeValueAsBytes(event);
+        }
         MessageProperties props = new MessageProperties();
         props.setReceivedRoutingKey(routingKey);
         return new Message(body, props);
