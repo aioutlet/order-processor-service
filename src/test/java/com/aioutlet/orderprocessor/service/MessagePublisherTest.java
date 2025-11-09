@@ -7,9 +7,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.core.TopicExchange;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,17 +15,13 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MessagePublisherTest {
 
     @Mock
-    private RabbitTemplate rabbitTemplate;
-
-    @Mock
-    private TopicExchange orderExchange;
+    private MessageBrokerService messageBrokerService;
 
     @InjectMocks
     private MessagePublisher messagePublisher;
@@ -40,16 +33,10 @@ class MessagePublisherTest {
     void setUp() {
         orderId = UUID.randomUUID();
         customerId = "customer-123";
-        
-        // Set up the exchange name
-        when(orderExchange.getName()).thenReturn("order.exchange");
-        
-        // Note: Routing keys are now hardcoded in the MessagePublisher methods
-        // No need to set up routing keys via reflection
     }
 
     @Test
-    void publishPaymentProcessing_ShouldSendMessageSuccessfully() {
+    void publishPaymentProcessing_ShouldSendMessageSuccessfully() throws Exception {
         // Arrange
         PaymentProcessingEvent event = new PaymentProcessingEvent();
         event.setOrderId(orderId);
@@ -60,27 +47,27 @@ class MessagePublisherTest {
         messagePublisher.publishPaymentProcessing(event);
 
         // Assert
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("payment.processing"), eq(event));
+        verify(messageBrokerService).publishPaymentProcessing(eq(event));
     }
 
     @Test
-    void publishPaymentProcessing_WhenRabbitTemplateFails_ShouldThrowException() {
+    void publishPaymentProcessing_WhenBrokerFails_ShouldThrowException() throws Exception {
         // Arrange
         PaymentProcessingEvent event = new PaymentProcessingEvent();
         event.setOrderId(orderId);
         event.setCustomerId(customerId);
         event.setAmount(new BigDecimal("99.99"));
 
-        doThrow(new RuntimeException("RabbitMQ connection error"))
-                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
+        doThrow(new RuntimeException("Message broker connection error"))
+                .when(messageBrokerService).publishPaymentProcessing(any());
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> messagePublisher.publishPaymentProcessing(event));
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("payment.processing"), eq(event));
+        verify(messageBrokerService).publishPaymentProcessing(eq(event));
     }
 
     @Test
-    void publishInventoryReservation_ShouldSendMessageSuccessfully() {
+    void publishInventoryReservation_ShouldSendMessageSuccessfully() throws Exception {
         // Arrange
         InventoryReservationEvent event = new InventoryReservationEvent();
         event.setOrderId(orderId);
@@ -91,47 +78,47 @@ class MessagePublisherTest {
         messagePublisher.publishInventoryReservation(event);
 
         // Assert
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("inventory.reservation"), eq(event));
+        verify(messageBrokerService).publishInventoryReservation(eq(event));
     }
 
     @Test
-    void publishInventoryReservation_WhenRabbitTemplateFails_ShouldThrowException() {
+    void publishInventoryReservation_WhenBrokerFails_ShouldThrowException() throws Exception {
         // Arrange
         InventoryReservationEvent event = new InventoryReservationEvent();
         event.setOrderId(orderId);
         event.setItems(new ArrayList<>());
         event.setRequestedAt(LocalDateTime.now());
 
-        doThrow(new RuntimeException("RabbitMQ connection error"))
-                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
+        doThrow(new RuntimeException("Message broker connection error"))
+                .when(messageBrokerService).publishInventoryReservation(any());
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> messagePublisher.publishInventoryReservation(event));
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("inventory.reservation"), eq(event));
+        verify(messageBrokerService).publishInventoryReservation(eq(event));
     }
 
     @Test
-    void publishShippingPreparation_ShouldSendMessageSuccessfully() {
+    void publishShippingPreparation_ShouldSendMessageSuccessfully() throws Exception {
         // Act
         messagePublisher.publishShippingPreparation(orderId, customerId);
 
         // Assert
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("shipping.preparation"), any(ShippingPreparationEvent.class));
+        verify(messageBrokerService).publishShippingPreparation(any(ShippingPreparationEvent.class));
     }
 
     @Test
-    void publishShippingPreparation_WhenRabbitTemplateFails_ShouldThrowException() {
+    void publishShippingPreparation_WhenBrokerFails_ShouldThrowException() throws Exception {
         // Arrange
-        doThrow(new RuntimeException("RabbitMQ connection error"))
-                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
+        doThrow(new RuntimeException("Message broker connection error"))
+                .when(messageBrokerService).publishShippingPreparation(any());
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> messagePublisher.publishShippingPreparation(orderId, customerId));
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("shipping.preparation"), any(ShippingPreparationEvent.class));
+        verify(messageBrokerService).publishShippingPreparation(any(ShippingPreparationEvent.class));
     }
 
     @Test
-    void publishOrderStatusChanged_ShouldSendMessageSuccessfully() {
+    void publishOrderStatusChanged_ShouldSendMessageSuccessfully() throws Exception {
         // Arrange
         String orderNumber = "ORD-001";
         String customerId = "CUST-123";
@@ -144,11 +131,11 @@ class MessagePublisherTest {
         messagePublisher.publishOrderStatusChanged(orderId, orderNumber, customerId, previousStatus, newStatus, reason, correlationId);
 
         // Assert
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("order.status.changed"), any(OrderStatusChangedEvent.class));
+        verify(messageBrokerService).publishOrderStatusChanged(any(OrderStatusChangedEvent.class));
     }
 
     @Test
-    void publishOrderStatusChanged_WhenRabbitTemplateFails_ShouldThrowException() {
+    void publishOrderStatusChanged_WhenBrokerFails_ShouldThrowException() throws Exception {
         // Arrange
         String orderNumber = "ORD-001";
         String customerId = "CUST-123";
@@ -156,16 +143,16 @@ class MessagePublisherTest {
         String newStatus = "COMPLETED";
         String reason = "Order completed successfully";
         String correlationId = UUID.randomUUID().toString();
-        doThrow(new RuntimeException("RabbitMQ connection error"))
-                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
+        doThrow(new RuntimeException("Message broker connection error"))
+                .when(messageBrokerService).publishOrderStatusChanged(any());
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> messagePublisher.publishOrderStatusChanged(orderId, orderNumber, customerId, previousStatus, newStatus, reason, correlationId));
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("order.status.changed"), any(OrderStatusChangedEvent.class));
+        verify(messageBrokerService).publishOrderStatusChanged(any(OrderStatusChangedEvent.class));
     }
 
     @Test
-    void publishShippingCancellation_ShouldSendMessageSuccessfully() {
+    void publishShippingCancellation_ShouldSendMessageSuccessfully() throws Exception {
         // Arrange
         String shippingId = "SHIP-789";
 
@@ -173,6 +160,6 @@ class MessagePublisherTest {
         messagePublisher.publishShippingCancellation(orderId, shippingId);
 
         // Assert
-        verify(rabbitTemplate).convertAndSend(eq("order.exchange"), eq("shipping.cancelled"), any(Object.class));
+        verify(messageBrokerService).publishShippingCancellation(eq(orderId), eq(shippingId));
     }
 }

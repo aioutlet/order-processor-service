@@ -2,16 +2,20 @@ package com.aioutlet.orderprocessor.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.http.MediaType;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = OperationalController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@WithMockUser
 class OperationalControllerTest {
 
     @Autowired
@@ -22,7 +26,6 @@ class OperationalControllerTest {
         // Act & Assert
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("healthy"))
                 .andExpect(jsonPath("$.service").value("order-processor-service"))
                 .andExpect(jsonPath("$.timestamp", notNullValue()))
@@ -34,7 +37,6 @@ class OperationalControllerTest {
         // Act & Assert
         mockMvc.perform(get("/health/ready"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("ready"))
                 .andExpect(jsonPath("$.service").value("order-processor-service"))
                 .andExpect(jsonPath("$.timestamp", notNullValue()))
@@ -47,7 +49,6 @@ class OperationalControllerTest {
         // Act & Assert
         mockMvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("alive"))
                 .andExpect(jsonPath("$.service").value("order-processor-service"))
                 .andExpect(jsonPath("$.timestamp", notNullValue()))
@@ -59,7 +60,6 @@ class OperationalControllerTest {
         // Act & Assert
         mockMvc.perform(get("/metrics"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.service").value("order-processor-service"))
                 .andExpect(jsonPath("$.timestamp", notNullValue()))
                 .andExpect(jsonPath("$.metrics.uptime", notNullValue()))

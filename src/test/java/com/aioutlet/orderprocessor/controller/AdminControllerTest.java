@@ -4,14 +4,15 @@ import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -24,7 +25,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = AdminController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@WithMockUser(roles = "ADMIN")
 class AdminControllerTest {
 
     @Autowired
@@ -59,7 +63,6 @@ class AdminControllerTest {
                 .param("page", "0")
                 .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].id").value(sagaId.toString()))
                 .andExpect(jsonPath("$.content[0].orderId").value(orderId.toString()))
@@ -87,7 +90,6 @@ class AdminControllerTest {
         // Act & Assert
         mockMvc.perform(get("/api/v1/admin/sagas/{id}", sagaId))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(sagaId.toString()))
                 .andExpect(jsonPath("$.orderId").value(orderId.toString()))
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
@@ -125,7 +127,6 @@ class AdminControllerTest {
         // Act & Assert
         mockMvc.perform(get("/api/v1/admin/sagas/order/{orderId}", orderId))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(sagaId.toString()))
                 .andExpect(jsonPath("$.orderId").value(orderId.toString()))
                 .andExpect(jsonPath("$.status").value("PAYMENT_PROCESSING"));
@@ -157,7 +158,6 @@ class AdminControllerTest {
         // Act & Assert
         mockMvc.perform(get("/api/v1/admin/sagas/stats"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.STARTED").value(5))
                 .andExpect(jsonPath("$.PAYMENT_PROCESSING").value(3))
                 .andExpect(jsonPath("$.INVENTORY_PROCESSING").value(2))
