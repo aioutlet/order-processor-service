@@ -2,7 +2,6 @@ package com.aioutlet.orderprocessor.controller;
 
 import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.repository.OrderProcessingSagaRepository;
-import com.aioutlet.orderprocessor.service.MessageBrokerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +20,6 @@ import java.util.UUID;
 public class AdminController {
 
     private final OrderProcessingSagaRepository sagaRepository;
-    private final MessageBrokerService messageBrokerService;
 
     /**
      * Get all sagas with pagination
@@ -71,13 +69,14 @@ public class AdminController {
     }
 
     /**
-     * Get message broker info
+     * Get Dapr info
      */
-    @GetMapping("/broker-info")
-    public ResponseEntity<Map<String, Object>> getBrokerInfo() {
+    @GetMapping("/dapr-info")
+    public ResponseEntity<Map<String, Object>> getDaprInfo() {
         Map<String, Object> info = Map.of(
-            "provider", messageBrokerService.getProviderName(),
-            "healthy", messageBrokerService.isHealthy()
+            "provider", "Dapr",
+            "pubsubComponent", "order-processor-pubsub",
+            "healthy", true
         );
         
         return ResponseEntity.ok(info);

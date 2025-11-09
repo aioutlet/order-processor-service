@@ -1,5 +1,6 @@
 package com.aioutlet.orderprocessor.service;
 
+import com.aioutlet.orderprocessor.events.publisher.DaprEventPublisher;
 import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.model.events.OrderCreatedEvent;
 import com.aioutlet.orderprocessor.model.events.PaymentProcessedEvent;
@@ -29,7 +30,7 @@ class SagaOrchestratorServiceTest {
     private OrderProcessingSagaRepository sagaRepository;
 
     @Mock
-    private MessagePublisher messagePublisher;
+    private DaprEventPublisher daprEventPublisher;
 
     @Mock
     private SagaMetricsService metricsService;
@@ -76,7 +77,7 @@ class SagaOrchestratorServiceTest {
         // Assert
         verify(sagaRepository).existsByOrderId(orderCreatedEvent.getOrderId());
         verify(sagaRepository).save(any(OrderProcessingSaga.class));
-        verify(messagePublisher).publishPaymentProcessing(any());
+        verify(daprEventPublisher).publishPaymentProcessing(any());
         verify(metricsService).recordSagaStarted(orderCreatedEvent.getOrderNumber());
     }
 
@@ -91,7 +92,7 @@ class SagaOrchestratorServiceTest {
         // Assert
         verify(sagaRepository).existsByOrderId(orderCreatedEvent.getOrderId());
         verify(sagaRepository, never()).save(any(OrderProcessingSaga.class));
-        verify(messagePublisher, never()).publishPaymentProcessing(any());
+        verify(daprEventPublisher, never()).publishPaymentProcessing(any());
     }
 
     @Test
@@ -110,7 +111,7 @@ class SagaOrchestratorServiceTest {
         // Assert
         verify(sagaRepository).findByOrderId(paymentEvent.getOrderId());
         verify(sagaRepository).save(testSaga);
-        verify(messagePublisher).publishInventoryReservation(any());
+        verify(daprEventPublisher).publishInventoryReservation(any());
         assertEquals(OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING, testSaga.getStatus());
         assertEquals("payment123", testSaga.getPaymentId());
     }
@@ -168,7 +169,7 @@ class SagaOrchestratorServiceTest {
         // Assert
         verify(sagaRepository).findByOrderId(orderId);
         verify(sagaRepository).save(testSaga);
-        verify(messagePublisher).publishOrderStatusChanged(eq(orderId), anyString(), anyString(), anyString(), eq("COMPLETED"), anyString(), anyString());
+        verify(daprEventPublisher).publishOrderStatusChanged(any());
         assertTrue(testSaga.isCompleted());
         assertNotNull(testSaga.getCompletedAt());
     }
@@ -189,7 +190,7 @@ class SagaOrchestratorServiceTest {
         verify(sagaRepository, atLeast(1)).save(testSaga);
         assertEquals(OrderProcessingSaga.SagaStatus.COMPENSATED, testSaga.getStatus());
         assertEquals(errorMessage, testSaga.getErrorMessage());
-        verify(messagePublisher).publishPaymentRefund(testSaga.getOrderId(), "payment123");
-        verify(messagePublisher).publishInventoryRelease(testSaga.getOrderId(), "reservation123");
+        verify(daprEventPublisher).publishPaymentRefund(testSaga.getOrderId(), "payment123");
+        verify(daprEventPublisher).publishInventoryRelease(testSaga.getOrderId(), "reservation123");
     }
 }

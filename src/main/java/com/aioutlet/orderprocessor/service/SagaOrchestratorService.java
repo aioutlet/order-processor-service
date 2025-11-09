@@ -1,5 +1,6 @@
 package com.aioutlet.orderprocessor.service;
 
+import com.aioutlet.orderprocessor.events.publisher.DaprEventPublisher;
 import com.aioutlet.orderprocessor.model.entity.OrderProcessingSaga;
 import com.aioutlet.orderprocessor.model.events.*;
 import com.aioutlet.orderprocessor.model.events.InventoryReservationEvent.InventoryItem;
@@ -19,7 +20,7 @@ import java.util.UUID;
 
 /**
  * Choreography-based Saga Orchestrator Service
- * Manages the state and flow of order processing saga
+ * Manages the state and flow of order processing saga using Dapr
  */
 @Service
 @RequiredArgsConstructor
@@ -27,7 +28,7 @@ import java.util.UUID;
 public class SagaOrchestratorService {
 
     private final OrderProcessingSagaRepository sagaRepository;
-    private final MessagePublisher messagePublisher;
+    private final DaprEventPublisher daprEventPublisher;
     private final SagaMetricsService metricsService;
     private final ObjectMapper objectMapper;
 
@@ -111,7 +112,7 @@ public class SagaOrchestratorService {
         log.info("Updated saga {} status to INVENTORY_PROCESSING", saga.getId());
 
         // Notify Order Service of payment completion via OrderStatusChangedEvent
-        messagePublisher.publishPaymentProcessedStatus(
+        daprEventPublisher.publishPaymentProcessedStatus(
             saga.getOrderId(), 
             saga.getOrderNumber(), 
             saga.getCustomerId(), 
@@ -188,7 +189,7 @@ public class SagaOrchestratorService {
         log.info("Updated saga {} status to SHIPPING_PROCESSING", saga.getId());
 
         // Notify Order Service of inventory reservation via OrderStatusChangedEvent
-        messagePublisher.publishInventoryReservedStatus(
+        daprEventPublisher.publishInventoryReservedStatus(
             saga.getOrderId(), 
             saga.getOrderNumber(), 
             saga.getCustomerId(), 
@@ -263,7 +264,7 @@ public class SagaOrchestratorService {
         log.info("Successfully completed saga {} for order: {}", saga.getId(), shippingPreparedEvent.getOrderId());
         
         // Notify Order Service of shipping preparation via OrderStatusChangedEvent
-        messagePublisher.publishShippingPreparedStatus(
+        daprEventPublisher.publishShippingPreparedStatus(
             saga.getOrderId(), 
             saga.getOrderNumber(), 
             saga.getCustomerId(), 
@@ -271,7 +272,7 @@ public class SagaOrchestratorService {
         );
         
         // Publish order completed status
-        messagePublisher.publishOrderCompletedStatus(
+        daprEventPublisher.publishOrderCompletedStatus(
             saga.getOrderId(),
             saga.getOrderNumber(),
             saga.getCustomerId(),
@@ -331,7 +332,7 @@ public class SagaOrchestratorService {
         log.info("Successfully completed saga {} for order: {}", saga.getId(), orderId);
         
         // Publish order completed status via OrderStatusChangedEvent
-        messagePublisher.publishOrderCompletedStatus(
+        daprEventPublisher.publishOrderCompletedStatus(
             saga.getOrderId(),
             saga.getOrderNumber(),
             saga.getCustomerId(),
@@ -375,7 +376,7 @@ public class SagaOrchestratorService {
                 LocalDateTime.now()
         );
 
-        messagePublisher.publishPaymentProcessing(paymentEvent);
+        daprEventPublisher.publishPaymentProcessing(paymentEvent);
     }
 
     /**
@@ -393,7 +394,7 @@ public class SagaOrchestratorService {
                 LocalDateTime.now()
         );
 
-        messagePublisher.publishPaymentProcessing(paymentEvent);
+        daprEventPublisher.publishPaymentProcessing(paymentEvent);
     }
 
     /**
@@ -428,7 +429,7 @@ public class SagaOrchestratorService {
             LocalDateTime.now()
         );
 
-        messagePublisher.publishInventoryReservation(inventoryEvent);
+        daprEventPublisher.publishInventoryReservation(inventoryEvent);
     }
 
     /**
@@ -438,7 +439,7 @@ public class SagaOrchestratorService {
         log.info("Preparing shipping for saga: {}", saga.getId());
 
         // In a real implementation, you'd fetch shipping details and prepare shipping
-        messagePublisher.publishShippingPreparation(saga.getOrderId(), saga.getCustomerId());
+        daprEventPublisher.publishShippingPreparation(saga.getOrderId(), saga.getCustomerId());
     }
 
     /**
@@ -449,15 +450,15 @@ public class SagaOrchestratorService {
 
         // Reverse actions in reverse order
         if (saga.getShippingId() != null) {
-            messagePublisher.publishShippingCancellation(saga.getOrderId(), saga.getShippingId());
+            daprEventPublisher.publishShippingCancellation(saga.getOrderId(), saga.getShippingId());
         }
 
         if (saga.getInventoryReservationId() != null) {
-            messagePublisher.publishInventoryRelease(saga.getOrderId(), saga.getInventoryReservationId());
+            daprEventPublisher.publishInventoryRelease(saga.getOrderId(), saga.getInventoryReservationId());
         }
 
         if (saga.getPaymentId() != null) {
-            messagePublisher.publishPaymentRefund(saga.getOrderId(), saga.getPaymentId());
+            daprEventPublisher.publishPaymentRefund(saga.getOrderId(), saga.getPaymentId());
         }
 
         saga.setStatus(OrderProcessingSaga.SagaStatus.COMPENSATED);
@@ -465,7 +466,7 @@ public class SagaOrchestratorService {
         
         // Notify Order Service of order failure via OrderStatusChangedEvent
         String failureStep = determineFailureStep(saga);
-        messagePublisher.publishOrderFailedStatus(
+        daprEventPublisher.publishOrderFailedStatus(
             saga.getOrderId(),
             saga.getOrderNumber(),
             saga.getCustomerId(),

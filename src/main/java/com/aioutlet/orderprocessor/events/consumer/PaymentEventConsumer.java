@@ -1,0 +1,59 @@
+package com.aioutlet.orderprocessor.events.consumer;
+
+import io.dapr.Topic;
+import io.dapr.client.domain.CloudEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.aioutlet.orderprocessor.model.events.PaymentProcessedEvent;
+import com.aioutlet.orderprocessor.model.events.PaymentFailedEvent;
+import com.aioutlet.orderprocessor.service.SagaOrchestratorService;
+
+/**
+ * Payment Event Consumer
+ * Handles payment-related events from Dapr pub/sub
+ */
+@RestController
+@RequestMapping("/dapr/events")
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentEventConsumer {
+
+    private final SagaOrchestratorService sagaOrchestratorService;
+
+    /**
+     * Handle payment.processed event
+     */
+    @Topic(name = "payment.processed", pubsubName = "order-processor-pubsub")
+    @PostMapping("/payment-processed")
+    public ResponseEntity<Void> handlePaymentProcessed(@RequestBody CloudEvent<PaymentProcessedEvent> cloudEvent) {
+        try {
+            log.info("Received payment.processed event: {}", cloudEvent.getId());
+            PaymentProcessedEvent event = cloudEvent.getData();
+            sagaOrchestratorService.handlePaymentProcessed(event);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error handling payment.processed event", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
+     * Handle payment.failed event
+     */
+    @Topic(name = "payment.failed", pubsubName = "order-processor-pubsub")
+    @PostMapping("/payment-failed")
+    public ResponseEntity<Void> handlePaymentFailed(@RequestBody CloudEvent<PaymentFailedEvent> cloudEvent) {
+        try {
+            log.info("Received payment.failed event: {}", cloudEvent.getId());
+            PaymentFailedEvent event = cloudEvent.getData();
+            sagaOrchestratorService.handlePaymentFailed(event);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error handling payment.failed event", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+}

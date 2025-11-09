@@ -8,18 +8,22 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Scheduled tasks for the Order Processor Service
+ * Scheduled tasks for saga management
+ * Note: For production, consider using Dapr Workflows (when available in SDK)
+ * or Dapr Actors with reminders for distributed saga timeout handling
  */
 @Component
 @EnableScheduling
 @RequiredArgsConstructor
 @Slf4j
-public class ScheduledTasks {
+public class SagaScheduledTasks {
 
     private final SagaOrchestratorService sagaOrchestratorService;
 
     /**
      * Check for and process stuck sagas every 15 minutes
+     * In a multi-instance deployment, consider using Dapr distributed lock
+     * to ensure only one instance processes timeouts
      */
     @Scheduled(fixedRateString = "${saga.scheduler.stuck-sagas-rate:900000}")
     public void processStuckSagas() {
@@ -30,16 +34,5 @@ public class ScheduledTasks {
         } catch (Exception e) {
             log.error("Error processing stuck sagas: {}", e.getMessage(), e);
         }
-    }
-
-    /**
-     * Process failed sagas that can be retried every 5 minutes
-     */
-    @Scheduled(fixedRateString = "${saga.scheduler.retry-sagas-rate:300000}")
-    public void retryFailedSagas() {
-        log.info("Starting scheduled task: retryFailedSagas");
-        
-        // Implementation omitted for brevity
-        // Would call a service method to find and retry eligible failed sagas
     }
 }

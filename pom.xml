@@ -22,6 +22,7 @@
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <micrometer.version>1.13.1</micrometer.version>
         <opentelemetry.version>1.32.0</opentelemetry.version>
+        <dapr.version>1.12.0</dapr.version>
     </properties>
 
     <dependencies>
@@ -36,9 +37,17 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
+        <!-- Dapr SDK for Java -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-amqp</artifactId>
+            <groupId>io.dapr</groupId>
+            <artifactId>dapr-sdk-springboot</artifactId>
+            <version>${dapr.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.dapr</groupId>
+            <artifactId>dapr-sdk</artifactId>
+            <version>${dapr.version}</version>
         </dependency>
 
         <dependency>
