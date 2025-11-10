@@ -21,9 +21,9 @@ import java.util.regex.Pattern;
  */
 @Component
 @Order(1)
-public class CorrelationIdFilter implements Filter {
+public class TraceContextFilter implements Filter {
 
-    private static final Logger logger = LoggerFactory.getLogger(CorrelationIdFilter.class);
+    private static final Logger logger = LoggerFactory.getLogger(TraceContextFilter.class);
     private static final String TRACEPARENT_HEADER = "traceparent";
     private static final String TRACE_ID_HEADER = "X-Trace-ID";
     private static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
