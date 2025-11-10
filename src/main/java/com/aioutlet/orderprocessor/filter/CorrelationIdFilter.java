@@ -10,23 +10,36 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.UUID;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Servlet filter for handling correlation IDs in HTTP requests
- * Dapr automatically handles distributed tracing via W3C Trace Context headers
+ * W3C Trace Context Filter for Order Processor Service
+ * Implements W3C Trace Context specification for distributed tracing
+ * Specification: https://www.w3.org/TR/trace-context/
  */
 @Component
 @Order(1)
 public class CorrelationIdFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(CorrelationIdFilter.class);
+    private static final String TRACEPARENT_HEADER = "traceparent";
+    private static final String TRACE_ID_HEADER = "X-Trace-ID";
     private static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
+    private static final String MDC_TRACE_ID_KEY = "traceId";
+    private static final String MDC_SPAN_ID_KEY = "spanId";
     private static final String MDC_CORRELATION_ID_KEY = "correlationId";
+    
+    // W3C Trace Context pattern: 00-{32-hex-trace-id}-{16-hex-span-id}-{2-hex-flags}
+    private static final Pattern TRACEPARENT_PATTERN = 
+        Pattern.compile("^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$");
+    
+    private static final Random random = new Random();
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        logger.info("CorrelationIdFilter initialized");
+        logger.info("W3C Trace Context Filter initialized");
     }
 
     @Override
@@ -37,53 +50,130 @@ public class CorrelationIdFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         
         try {
-            // Extract correlation ID from header or generate new one
-            String correlationId = extractOrGenerateCorrelationId(httpRequest);
+            // Extract or generate W3C Trace Context
+            TraceContext traceContext = extractOrGenerateTraceContext(httpRequest);
             
-            // Set correlation ID in MDC for logging
-            MDC.put(MDC_CORRELATION_ID_KEY, correlationId);
+            // Set trace context in MDC for logging
+            MDC.put(MDC_TRACE_ID_KEY, traceContext.traceId);
+            MDC.put(MDC_SPAN_ID_KEY, traceContext.spanId);
+            MDC.put(MDC_CORRELATION_ID_KEY, traceContext.traceId); // Use trace ID as correlation ID
             
-            // Add correlation ID to response headers
-            httpResponse.setHeader(CORRELATION_ID_HEADER, correlationId);
+            // Add W3C traceparent header to response for propagation
+            String traceparent = String.format("00-%s-%s-01", 
+                traceContext.traceId, traceContext.spanId);
+            httpResponse.setHeader(TRACEPARENT_HEADER, traceparent);
+            
+            // Add trace ID header for easier debugging
+            httpResponse.setHeader(TRACE_ID_HEADER, traceContext.traceId);
+            
+            // Also support legacy correlation ID header
+            httpResponse.setHeader(CORRELATION_ID_HEADER, traceContext.traceId);
             
             // Store in request attributes for use in controllers/services
-            httpRequest.setAttribute(MDC_CORRELATION_ID_KEY, correlationId);
+            httpRequest.setAttribute(MDC_TRACE_ID_KEY, traceContext.traceId);
+            httpRequest.setAttribute(MDC_SPAN_ID_KEY, traceContext.spanId);
+            httpRequest.setAttribute(MDC_CORRELATION_ID_KEY, traceContext.traceId);
             
-            logger.debug("Processing request {} {} with correlation ID: {}",
-                    httpRequest.getMethod(), httpRequest.getRequestURI(), correlationId);
+            logger.debug("Processing request {} {} with trace ID: {} (first 8 chars)",
+                    httpRequest.getMethod(), 
+                    httpRequest.getRequestURI(), 
+                    traceContext.traceId.substring(0, 8));
             
             // Continue with the filter chain
-            // Note: Dapr automatically handles distributed tracing via W3C Trace Context
             chain.doFilter(request, response);
             
         } finally {
             // Clean up MDC to prevent memory leaks
+            MDC.remove(MDC_TRACE_ID_KEY);
+            MDC.remove(MDC_SPAN_ID_KEY);
             MDC.remove(MDC_CORRELATION_ID_KEY);
         }
     }
 
     @Override
     public void destroy() {
-        logger.info("CorrelationIdFilter destroyed");
+        logger.info("W3C Trace Context Filter destroyed");
     }
 
     /**
-     * Extract correlation ID from request header or generate a new one
+     * Extract W3C Trace Context from traceparent header or generate new one
      */
-    private String extractOrGenerateCorrelationId(HttpServletRequest request) {
-        // Try to get from standard header
-        String correlationId = request.getHeader(CORRELATION_ID_HEADER);
+    private TraceContext extractOrGenerateTraceContext(HttpServletRequest request) {
+        String traceparent = request.getHeader(TRACEPARENT_HEADER);
         
-        if (correlationId == null || correlationId.trim().isEmpty()) {
-            // Try lowercase version (some clients might use this)
-            correlationId = request.getHeader("x-correlation-id");
+        if (traceparent != null && !traceparent.trim().isEmpty()) {
+            TraceContext extracted = parseTraceparent(traceparent);
+            if (extracted != null) {
+                return extracted;
+            }
         }
         
-        if (correlationId == null || correlationId.trim().isEmpty()) {
-            // Generate new correlation ID
-            correlationId = UUID.randomUUID().toString();
+        // Generate new trace context if extraction failed or no header present
+        return generateTraceContext();
+    }
+
+    /**
+     * Parse W3C traceparent header
+     * Format: 00-{32-hex-trace-id}-{16-hex-span-id}-{2-hex-flags}
+     */
+    private TraceContext parseTraceparent(String traceparent) {
+        Matcher matcher = TRACEPARENT_PATTERN.matcher(traceparent);
+        
+        if (!matcher.matches()) {
+            logger.debug("Invalid traceparent format: {}", traceparent);
+            return null;
         }
         
-        return correlationId;
+        String traceId = matcher.group(1);
+        String spanId = matcher.group(2);
+        
+        // Validate trace ID is not all zeros
+        if (traceId.equals("00000000000000000000000000000000")) {
+            logger.debug("Invalid traceparent: trace ID is all zeros");
+            return null;
+        }
+        
+        // Validate span ID is not all zeros
+        if (spanId.equals("0000000000000000")) {
+            logger.debug("Invalid traceparent: span ID is all zeros");
+            return null;
+        }
+        
+        return new TraceContext(traceId, spanId);
+    }
+
+    /**
+     * Generate new W3C Trace Context
+     * Trace ID: 32 hex characters (128 bits)
+     * Span ID: 16 hex characters (64 bits)
+     */
+    private TraceContext generateTraceContext() {
+        String traceId = generateHexString(32);
+        String spanId = generateHexString(16);
+        return new TraceContext(traceId, spanId);
+    }
+
+    /**
+     * Generate random hex string of specified length
+     */
+    private String generateHexString(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(Integer.toHexString(random.nextInt(16)));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Simple class to hold trace context
+     */
+    private static class TraceContext {
+        final String traceId;
+        final String spanId;
+
+        TraceContext(String traceId, String spanId) {
+            this.traceId = traceId;
+            this.spanId = spanId;
+        }
     }
 }
