@@ -1,20 +1,20 @@
-# Application configuration in YAML format
+# Order Processor Service Configuration
+# Dapr-only architecture: Messaging, secrets, tracing, and service invocation handled by Dapr
+
 spring:
   application:
     name: order-processor-service
 
-  # Profile configuration
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:development}
 
-  # Database configuration
+  # Database configuration - credentials from Dapr secrets
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:order_processor_db}
     username: ${DB_USER:orderprocessoruser}
     password: ${DB_PASSWORD:order_processor_dev_pass_123}
     driver-class-name: org.postgresql.Driver
 
-  # JPA configuration
   jpa:
     open-in-view: false
     properties:
@@ -26,27 +26,10 @@ spring:
         order_inserts: true
         order_updates: true
 
-  # Flyway configuration
   flyway:
     locations: classpath:db/migration
     enabled: true
 
-  # RabbitMQ configuration
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:admin}
-    password: ${RABBITMQ_PASSWORD:admin123}
-    virtual-host: /
-    connection-timeout: 30000
-    requested-heartbeat: 30
-
-  # Redis configuration
-  redis:
-    database: 6
-    timeout: 2000ms
-
-  # JSON serialization
   jackson:
     default-property-inclusion: non_null
     serialization:
@@ -55,29 +38,15 @@ spring:
       fail-on-unknown-properties: false
     date-format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
 
-  # Logging (override pattern defined in logback)
-  logging:
-    level:
-      root: ERROR
-      com.aioutlet.orderprocessor: INFO
-      org.springframework: ERROR
-      org.springframework.amqp: ERROR
-      org.springframework.boot: ERROR
-      org.springframework.boot.autoconfigure: ERROR
-      org.springframework.web: ERROR
-      org.springframework.data: ERROR
-      org.springframework.security: ERROR
-      org.hibernate: ERROR
-      org.hibernate.SQL: ERROR
-      org.hibernate.validator: ERROR
-      org.flywaydb: ERROR
-      io.opentelemetry: ERROR
-      org.apache.tomcat: ERROR
-      org.apache.catalina: ERROR
-      org.postgresql: ERROR
-      com.zaxxer.hikari: ERROR
+logging:
+  level:
+    root: INFO
+    com.aioutlet.orderprocessor: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.flywaydb: INFO
 
-# Management/Actuator Configuration (at root level, not under spring)
+# Actuator endpoints for health checks
 management:
   endpoints:
     web:
@@ -87,125 +56,67 @@ management:
   endpoint:
     health:
       show-details: always
-      show-components: always
       probes:
         enabled: true
   health:
-    rabbit:
-      enabled: true
     db:
       enabled: true
-    redis:
-      enabled: true
-
-# Application version
-application:
-  version: ${APPLICATION_VERSION:1.0.0}
 
 # Server configuration
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:1007}
   servlet:
     context-path: /
   error:
     include-message: always
     include-binding-errors: always
 
-# JWT Configuration
-jwt:
-  secret: ${JWT_SECRET:8tDBDMcpxroHoHjXjk8xp/uAn8rzD4y8ZZremFkC4gI=}
-  # TODO: Enable issuer and audience validation when auth-service is updated to include these claims
-  # issuer: aioutlet-auth-service
-  # audience: aioutlet-order-processor-service
+# Application metadata
+application:
+  version: ${APPLICATION_VERSION:1.0.0}
 
-# Security configuration
-security:
-  jwt:
-    issuer: aioutlet-auth-service
-    audience: aioutlet-order-processor-service
+# Dapr configuration
+dapr:
+  host: ${DAPR_HOST:localhost}
+  http-port: ${DAPR_HTTP_PORT:3507}
+  grpc-port: ${DAPR_GRPC_PORT:50007}
+  app-id: ${DAPR_APP_ID:order-processor-service}
+  pubsub-name: ${DAPR_PUBSUB_NAME:order-pubsub}
 
-# CORS configuration
-app:
-  cors:
-    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
-    allow-credentials: true
+# Service invocation via Dapr (app-id based, not URLs)
+services:
+  order:
+    app-id: order-service
+  payment:
+    app-id: payment-service
+  inventory:
+    app-id: inventory-service
+  shipping:
+    app-id: shipping-service
 
-  # Rate limiting configuration
-  rate-limit:
-    enabled: true
-    requests-per-minute: 100
-    window-size-minutes: 1
-    saga-operations-per-minute: 50
-    admin-operations-per-minute: 20
+# Pub/Sub topics - centralized configuration
+topics:
+  order-created: order.created
+  order-updated: order.updated
+  order-cancelled: order.cancelled
+  order-status-changed: order.status.changed
+  payment-processed: payment.processed
+  payment-failed: payment.failed
+  inventory-reserved: inventory.reserved
+  inventory-failed: inventory.failed
+  shipping-prepared: shipping.prepared
+  shipping-failed: shipping.failed
 
-# Message Broker Configuration
-messaging:
-  provider: ${MESSAGE_BROKER_PROVIDER:RabbitMQ}
-
-  exchange:
-    name: ${MESSAGE_BROKER_EXCHANGE:aioutlet.events}
-    type: topic
-
-  queue:
-    order-processor: order-processor-queue
-
-  routing-key:
-    order-created: order.created
-    order-updated: order.updated
-    order-cancelled: order.cancelled
-    order-shipped: order.shipped
-    order-delivered: order.delivered
-    order-deleted: order.deleted
-    order-status-changed: order.status.changed
-    payment-processed: payment.processed
-    payment-failed: payment.failed
-    inventory-reserved: inventory.reserved
-    inventory-failed: inventory.failed
-    shipping-prepared: shipping.prepared
-    shipping-failed: shipping.failed
-
-  # RabbitMQ specific configuration
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:admin}
-    password: ${RABBITMQ_PASSWORD:admin123}
-    virtual-host: /
-
-  # Kafka specific configuration
-  kafka:
-    brokers: ${KAFKA_BROKERS:localhost:9092}
-    group-id: order-processor-service
-    topic: aioutlet.events
-
-  # Azure Service Bus specific configuration
-  azure-service-bus:
-    namespace: ${AZURE_SERVICEBUS_NAMESPACE:}
-    connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
-    use-managed-identity: true
-    topic-name: aioutlet-events
-    subscription-name: order-processor-subscription
-
-# Saga Configuration
+# Saga orchestration configuration
 saga:
   retry:
-    maxAttempts: 3
-    backoffMultiplier: 2
-    initialDelay: 1000
+    max-attempts: 3
+    backoff-multiplier: 2
+    initial-delay-ms: 1000
   timeout:
-    payment: 300
-    inventory: 180
-    shipping: 240
+    payment-seconds: 300
+    inventory-seconds: 180
+    shipping-seconds: 240
   scheduler:
-    stuck-sagas-rate: 900000 # 15 minutes
-    retry-sagas-rate: 300000 # 5 minutes
-
-# Tracing configuration
-tracing:
-  enabled: true
-  otlp:
-    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-  service:
-    name: ${OTEL_SERVICE_NAME:order-processor-service}
-    version: ${OTEL_SERVICE_VERSION:1.0.0}
-    instance-id: ${HOSTNAME:unknown}
+    stuck-sagas-check-ms: 900000
+    retry-sagas-check-ms: 300000

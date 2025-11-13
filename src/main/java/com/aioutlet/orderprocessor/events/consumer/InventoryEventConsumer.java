@@ -26,7 +26,7 @@ public class InventoryEventConsumer {
     /**
      * Handle inventory.reserved event
      */
-    @Topic(name = "inventory.reserved", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.inventory-reserved}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/inventory-reserved")
     public ResponseEntity<Void> handleInventoryReserved(@RequestBody CloudEvent<InventoryReservedEvent> cloudEvent) {
         try {
@@ -43,7 +43,7 @@ public class InventoryEventConsumer {
     /**
      * Handle inventory.failed event
      */
-    @Topic(name = "inventory.failed", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.inventory-failed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/inventory-failed")
     public ResponseEntity<Void> handleInventoryFailed(@RequestBody CloudEvent<InventoryFailedEvent> cloudEvent) {
         try {

@@ -32,7 +32,7 @@ public class SagaOrchestratorService {
     private final SagaMetricsService metricsService;
     private final ObjectMapper objectMapper;
 
-    @Value("${saga.retry.maxAttempts:3}")
+    @Value("${saga.retry.max-attempts:3}")
     private int maxRetryAttempts;
 
     /**

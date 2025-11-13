@@ -21,6 +21,32 @@ import java.util.Map;
 public class OperationalController {
 
     /**
+     * Home endpoint - welcome message
+     */
+    @GetMapping("/")
+    public ResponseEntity<Map<String, Object>> home() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Welcome to the Order Processor Service");
+        response.put("service", "order-processor-service");
+        response.put("description", "Choreography-based saga pattern order processor");
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Version endpoint
+     */
+    @GetMapping("/version")
+    public ResponseEntity<Map<String, Object>> version() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("version", System.getProperty("api.version", "1.0.0"));
+        response.put("service", "order-processor-service");
+        response.put("environment", System.getProperty("spring.profiles.active", "development"));
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Basic health check endpoint
      */
     @GetMapping("/health")
@@ -37,7 +63,7 @@ public class OperationalController {
     /**
      * Readiness probe - check if service is ready to serve traffic
      */
-    @GetMapping("/health/ready")
+    @GetMapping("/readiness")
     public ResponseEntity<Map<String, Object>> readiness() {
         try {
             // Add more sophisticated checks here (DB connectivity, message broker, etc.)
@@ -71,7 +97,7 @@ public class OperationalController {
     /**
      * Liveness probe - check if the app is running
      */
-    @GetMapping("/health/live")
+    @GetMapping("/liveness")
     public ResponseEntity<Map<String, Object>> liveness() {
         RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
         double uptimeSeconds = runtimeBean.getUptime() / 1000.0;

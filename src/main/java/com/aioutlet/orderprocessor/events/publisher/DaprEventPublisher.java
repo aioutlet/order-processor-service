@@ -20,7 +20,7 @@ import java.util.Map;
 @Slf4j
 public class DaprEventPublisher {
 
-    @Value("${dapr.pubsub.name:order-processor-pubsub}")
+    @Value("${dapr.pubsub-name:order-pubsub}")
     private String pubsubName;
 
     private DaprClient daprClient;

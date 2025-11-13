@@ -25,7 +25,7 @@ public class OrderEventConsumer {
     /**
      * Handle order.created event
      */
-    @Topic(name = "order.created", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.order-created}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/order-created")
     public ResponseEntity<Void> handleOrderCreated(@RequestBody CloudEvent<OrderCreatedEvent> cloudEvent) {
         try {

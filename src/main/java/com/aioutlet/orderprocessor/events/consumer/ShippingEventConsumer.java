@@ -26,7 +26,7 @@ public class ShippingEventConsumer {
     /**
      * Handle shipping.prepared event
      */
-    @Topic(name = "shipping.prepared", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.shipping-prepared}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/shipping-prepared")
     public ResponseEntity<Void> handleShippingPrepared(@RequestBody CloudEvent<ShippingPreparedEvent> cloudEvent) {
         try {
@@ -43,7 +43,7 @@ public class ShippingEventConsumer {
     /**
      * Handle shipping.failed event
      */
-    @Topic(name = "shipping.failed", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.shipping-failed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/shipping-failed")
     public ResponseEntity<Void> handleShippingFailed(@RequestBody CloudEvent<ShippingFailedEvent> cloudEvent) {
         try {

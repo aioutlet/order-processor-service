@@ -26,7 +26,7 @@ public class PaymentEventConsumer {
     /**
      * Handle payment.processed event
      */
-    @Topic(name = "payment.processed", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.payment-processed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/payment-processed")
     public ResponseEntity<Void> handlePaymentProcessed(@RequestBody CloudEvent<PaymentProcessedEvent> cloudEvent) {
         try {
@@ -43,7 +43,7 @@ public class PaymentEventConsumer {
     /**
      * Handle payment.failed event
      */
-    @Topic(name = "payment.failed", pubsubName = "order-processor-pubsub")
+    @Topic(name = "${topics.payment-failed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/payment-failed")
     public ResponseEntity<Void> handlePaymentFailed(@RequestBody CloudEvent<PaymentFailedEvent> cloudEvent) {
         try {
