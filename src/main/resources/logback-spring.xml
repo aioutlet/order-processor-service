@@ -2,7 +2,8 @@
 <configuration>
     
     <!-- Import OpenTelemetry appender -->
-    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender" />
+    <!-- Temporarily disabled due to circular reference error -->
+    <!-- <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender" /> -->
 
     <!-- Console appender with unified format to match user service -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
@@ -72,7 +73,7 @@
     <root level="ERROR">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
-        <appender-ref ref="OTEL"/>
+        <!-- <appender-ref ref="OTEL"/> -->
         <!-- Uncomment for JSON logging -->
         <!-- <appender-ref ref="JSON"/> -->
     </root>
@@ -81,7 +82,7 @@
     <logger name="com.aioutlet.orderprocessor" level="INFO" additivity="false">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
-        <appender-ref ref="OTEL"/>
+        <!-- <appender-ref ref="OTEL"/> -->
     </logger>
 
     <!-- Suppress all Spring Boot startup noise -->

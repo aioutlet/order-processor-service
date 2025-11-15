@@ -43,6 +43,7 @@ public class DaprSecretManager {
 
     /**
      * Get a specific secret by key
+     * Supports nested keys with colon separator (e.g., "jwt:secret")
      */
     public String getSecret(String key) {
         try {
@@ -55,7 +56,10 @@ public class DaprSecretManager {
                 return null;
             }
             
-            return secret.get(key);
+            // Return the first value (Dapr handles nested separator automatically)
+            String value = secret.values().stream().findFirst().orElse(null);
+            log.debug("Successfully retrieved secret: {}", key);
+            return value;
         } catch (Exception e) {
             log.error("Failed to retrieve secret: {}", key, e);
             throw new RuntimeException("Failed to retrieve secret", e);
@@ -77,22 +81,24 @@ public class DaprSecretManager {
 
     /**
      * Get database configuration from secrets
+     * Uses nested structure: database:host, database:port, etc.
      */
     public DatabaseConfig getDatabaseConfig() {
-        String host = getSecret("DATABASE_HOST");
-        String port = getSecret("DATABASE_PORT");
-        String name = getSecret("DATABASE_NAME");
-        String user = getSecret("DATABASE_USER");
-        String password = getSecret("DATABASE_PASSWORD");
+        String host = getSecret("database:host");
+        String port = getSecret("database:port");
+        String name = getSecret("database:name");
+        String user = getSecret("database:user");
+        String password = getSecret("database:password");
         
         return new DatabaseConfig(host, port, name, user, password);
     }
 
     /**
      * Get JWT secret
+     * Uses nested structure: jwt:secret
      */
     public String getJwtSecret() {
-        return getSecret("JWT_SECRET");
+        return getSecret("jwt:secret");
     }
 
     /**

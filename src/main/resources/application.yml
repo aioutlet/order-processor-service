@@ -8,11 +8,9 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:development}
 
-  # Database configuration - credentials from Dapr secrets
+  # Database configuration - credentials loaded from Dapr secrets at runtime
+  # Database connection will be configured programmatically using DaprSecretManager
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:order_processor_db}
-    username: ${DB_USER:orderprocessoruser}
-    password: ${DB_PASSWORD:order_processor_dev_pass_123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -83,6 +81,16 @@ dapr:
   app-id: ${DAPR_APP_ID:order-processor-service}
   pubsub-name: ${DAPR_PUBSUB_NAME:event-bus}
 
+# Topic names for event subscriptions
+topics:
+  order-created: order.created
+  payment-processed: payment.processed
+  payment-failed: payment.failed
+  inventory-reserved: inventory.reserved
+  inventory-failed: inventory.failed
+  shipping-prepared: shipping.prepared
+  shipping-failed: shipping.failed
+
 # Service invocation via Dapr (app-id based, not URLs)
 services:
   order:
@@ -93,19 +101,6 @@ services:
     app-id: inventory-service
   shipping:
     app-id: shipping-service
-
-# Pub/Sub topics - centralized configuration
-topics:
-  order-created: order.created
-  order-updated: order.updated
-  order-cancelled: order.cancelled
-  order-status-changed: order.status.changed
-  payment-processed: payment.processed
-  payment-failed: payment.failed
-  inventory-reserved: inventory.reserved
-  inventory-failed: inventory.failed
-  shipping-prepared: shipping.prepared
-  shipping-failed: shipping.failed
 
 # Saga orchestration configuration
 saga:

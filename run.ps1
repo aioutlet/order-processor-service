@@ -48,8 +48,13 @@ dapr run `
   --dapr-http-port 3507 `
   --dapr-grpc-port 50007 `
   --log-level error `
-  --resources-path ./.dapr `
+  --resources-path ./.dapr/components `
   --config ./.dapr/config.yaml `
+  --enable-app-health-check `
+  --app-health-check-path /actuator/health `
+  --app-health-probe-interval 5 `
+  --app-health-probe-timeout 10 `
+  --app-health-threshold 2 `
   -- mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=1007"
 
 Write-Host ""
