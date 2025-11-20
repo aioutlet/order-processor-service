@@ -1,13 +1,12 @@
 package com.aioutlet.orderprocessor.client;
 
 import io.dapr.client.DaprClient;
-import io.dapr.client.DaprClientBuilder;
 import io.dapr.client.domain.HttpExtension;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 
 /**
  * Dapr Service Client
@@ -15,26 +14,14 @@ import jakarta.annotation.PreDestroy;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DaprServiceClient {
 
-    private DaprClient daprClient;
+    private final DaprClient daprClient;
 
     @PostConstruct
     public void init() {
-        this.daprClient = new DaprClientBuilder().build();
         log.info("Dapr Service Client initialized");
-    }
-
-    @PreDestroy
-    public void cleanup() {
-        if (daprClient != null) {
-            try {
-                daprClient.close();
-                log.info("Dapr client closed successfully");
-            } catch (Exception e) {
-                log.error("Error closing Dapr client", e);
-            }
-        }
     }
 
     /**

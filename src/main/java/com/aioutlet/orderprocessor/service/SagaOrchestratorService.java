@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +38,8 @@ public class SagaOrchestratorService {
 
     /**
      * Start a new saga for order processing
+     * Saga starts in PENDING_PAYMENT_CONFIRMATION status
+     * Admin must manually confirm payment to proceed
      */
     @Transactional
     public void startOrderProcessingSaga(OrderCreatedEvent orderCreatedEvent) {
@@ -48,15 +51,15 @@ public class SagaOrchestratorService {
             return;
         }
 
-        // Create new saga
+        // Create new saga in PENDING state - no automatic processing
         OrderProcessingSaga saga = new OrderProcessingSaga();
         saga.setOrderId(orderCreatedEvent.getOrderId());
         saga.setCustomerId(orderCreatedEvent.getCustomerId());
         saga.setOrderNumber(orderCreatedEvent.getOrderNumber());
         saga.setTotalAmount(orderCreatedEvent.getTotalAmount());
         saga.setCurrency(orderCreatedEvent.getCurrency());
-        saga.setStatus(OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING);
-        saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.PAYMENT_PROCESSING);
+        saga.setStatus(OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION);
+        saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.AWAITING_PAYMENT);
 
         // Store order items and addresses from event (event-driven architecture)
         // This eliminates the need for HTTP calls to Order Service
@@ -76,26 +79,24 @@ public class SagaOrchestratorService {
         }
 
         saga = sagaRepository.save(saga);
-        log.info("Created saga {} for order: {}", saga.getId(), orderCreatedEvent.getOrderId());
+        log.info("Created saga {} for order: {} - Status: PENDING_PAYMENT_CONFIRMATION", 
+                saga.getId(), orderCreatedEvent.getOrderId());
 
         // Record metrics
         metricsService.recordSagaStarted(orderCreatedEvent.getOrderNumber());
-
-        // Start payment processing
-        try {
-            processPayment(saga, orderCreatedEvent);
-        } catch (Exception e) {
-            log.error("Failed to start payment processing for saga: {}", saga.getId(), e);
-            handleSagaFailure(saga, "Failed to start payment processing: " + e.getMessage());
-        }
+        
+        // NO AUTOMATIC PROCESSING - Admin must confirm payment via Admin UI
+        log.info("Saga awaiting admin action: Payment confirmation required for order: {}", 
+                orderCreatedEvent.getOrderNumber());
     }
 
     /**
-     * Handle payment processed event
+     * Handle payment processed event (triggered by admin action via Admin UI)
+     * Admin has confirmed payment received - move saga to next pending state
      */
     @Transactional
     public void handlePaymentProcessed(PaymentProcessedEvent paymentProcessedEvent) {
-        log.info("Handling payment processed for order: {}", paymentProcessedEvent.getOrderId());
+        log.info("Admin confirmed payment for order: {}", paymentProcessedEvent.getOrderId());
 
         Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(paymentProcessedEvent.getOrderId());
         if (sagaOpt.isEmpty()) {
@@ -105,35 +106,23 @@ public class SagaOrchestratorService {
 
         OrderProcessingSaga saga = sagaOpt.get();
         saga.setPaymentId(paymentProcessedEvent.getPaymentId());
-        saga.setStatus(OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING);
-        saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.INVENTORY_PROCESSING);
+        saga.markPaymentConfirmed(); // Sets status to PAYMENT_CONFIRMED, step to AWAITING_SHIPMENT
+        saga.setStatus(OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION);
         
         saga = sagaRepository.save(saga);
-        log.info("Updated saga {} status to INVENTORY_PROCESSING", saga.getId());
+        log.info("Updated saga {} - Payment confirmed, awaiting admin shipment preparation", saga.getId());
 
-        // Notify Order Service of payment completion via OrderStatusChangedEvent
-        daprEventPublisher.publishPaymentProcessedStatus(
-            saga.getOrderId(), 
-            saga.getOrderNumber(), 
-            saga.getCustomerId(), 
-            paymentProcessedEvent.getCorrelationId()
-        );
-
-        // Proceed to inventory reservation
-        try {
-            reserveInventory(saga);
-        } catch (Exception e) {
-            log.error("Failed to start inventory reservation for saga: {}", saga.getId(), e);
-            handleSagaFailure(saga, "Failed to start inventory reservation: " + e.getMessage());
-        }
+        // NO AUTOMATIC PROCESSING - Admin must prepare shipment via Admin UI
+        log.info("Saga awaiting admin action: Shipment preparation required for order: {}", 
+                saga.getOrderNumber());
     }
 
     /**
-     * Handle payment failed event
+     * Handle payment failed event (admin marks payment as failed/rejected)
      */
     @Transactional
     public void handlePaymentFailed(PaymentFailedEvent paymentFailedEvent) {
-        log.info("Handling payment failure for order: {}", paymentFailedEvent.getOrderId());
+        log.info("Admin marked payment as failed for order: {}", paymentFailedEvent.getOrderId());
 
         Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(paymentFailedEvent.getOrderId());
         if (sagaOpt.isEmpty()) {
@@ -143,36 +132,20 @@ public class SagaOrchestratorService {
 
         OrderProcessingSaga saga = sagaOpt.get();
         
-        if (saga.canRetry()) {
-            log.info("Retrying payment for saga: {} (attempt {})", saga.getId(), saga.getRetryCount() + 1);
-            saga.incrementRetry();
-            sagaRepository.save(saga);
-            
-            // Retry payment processing with exponential backoff
-            // In a real implementation, you'd use a scheduler or delay queue
-            try {
-                Thread.sleep(1000 * saga.getRetryCount()); // Simple backoff
-                // Re-fetch order details and retry payment
-                processPaymentRetry(saga);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                handleSagaFailure(saga, "Payment retry interrupted");
-            } catch (Exception e) {
-                log.error("Failed to retry payment for saga: {}", saga.getId(), e);
-                handleSagaFailure(saga, "Payment retry failed: " + e.getMessage());
-            }
-        } else {
-            log.error("Payment failed for saga: {} after {} attempts", saga.getId(), saga.getRetryCount());
-            handleSagaFailure(saga, "Payment failed: " + paymentFailedEvent.getReason());
-        }
+        // No automatic retries - admin must decide to retry manually or cancel order
+        log.warn("Payment failed for order: {} - Reason: {}", 
+                paymentFailedEvent.getOrderId(), paymentFailedEvent.getReason());
+        handleSagaFailure(saga, "Payment failed: " + paymentFailedEvent.getReason());
     }
 
     /**
-     * Handle inventory reserved event
+     * Handle inventory reserved event (admin confirmed stock availability)
+     * NOTE: In admin-driven workflow, inventory check should be part of shipment preparation
+     * This handler exists for compatibility but may not be needed
      */
     @Transactional
     public void handleInventoryReserved(InventoryReservedEvent inventoryReservedEvent) {
-        log.info("Handling inventory reserved for order: {}", inventoryReservedEvent.getOrderId());
+        log.info("Inventory confirmed for order: {}", inventoryReservedEvent.getOrderId());
 
         Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(inventoryReservedEvent.getOrderId());
         if (sagaOpt.isEmpty()) {
@@ -182,23 +155,18 @@ public class SagaOrchestratorService {
 
         OrderProcessingSaga saga = sagaOpt.get();
         saga.setInventoryReservationId(inventoryReservedEvent.getReservationId());
-        saga.setStatus(OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING);
-        saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.SHIPPING_PROCESSING);
+        // Note: This handler is for future use if inventory reservation becomes part of workflow
+        // Currently admin workflow doesn't include explicit inventory reservation step
         
         saga = sagaRepository.save(saga);
-        log.info("Updated saga {} status to SHIPPING_PROCESSING", saga.getId());
+        log.info("Inventory reservation recorded for saga {}", saga.getId());
 
-        // Notify Order Service of inventory reservation via OrderStatusChangedEvent
-        daprEventPublisher.publishInventoryReservedStatus(
-            saga.getOrderId(), 
-            saga.getOrderNumber(), 
-            saga.getCustomerId(), 
-            inventoryReservedEvent.getCorrelationId()
-        );
-
-        // Proceed to shipping preparation
+        // REMOVED automatic shipping preparation - admin must manually prepare shipment
+        // Admin will trigger shipping via Admin UI which publishes shipping.prepared event
+        
+        // Placeholder for potential error handling
         try {
-            prepareShipping(saga);
+            // Future: Could notify admin of inventory status if needed
         } catch (Exception e) {
             log.error("Failed to start shipping preparation for saga: {}", saga.getId(), e);
             handleSagaFailure(saga, "Failed to start shipping preparation: " + e.getMessage());
@@ -244,9 +212,13 @@ public class SagaOrchestratorService {
     /**
      * Handle shipping prepared event
      */
+    /**
+     * Handle shipping prepared event (triggered by admin action via Admin UI)
+     * Admin has prepared the shipment - complete the saga
+     */
     @Transactional
     public void handleShippingPrepared(ShippingPreparedEvent shippingPreparedEvent) {
-        log.info("Handling shipping prepared for order: {}", shippingPreparedEvent.getOrderId());
+        log.info("Admin confirmed shipment prepared for order: {}", shippingPreparedEvent.getOrderId());
 
         Optional<OrderProcessingSaga> sagaOpt = sagaRepository.findByOrderId(shippingPreparedEvent.getOrderId());
         if (sagaOpt.isEmpty()) {
@@ -256,28 +228,16 @@ public class SagaOrchestratorService {
 
         OrderProcessingSaga saga = sagaOpt.get();
         saga.setShippingId(shippingPreparedEvent.getShippingId());
+        saga.markShippingPrepared(); // Sets status to SHIPPING_PREPARED
         saga.setStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
         saga.setCurrentStep(OrderProcessingSaga.ProcessingStep.COMPLETED);
         saga.markCompleted();
         
         sagaRepository.save(saga);
-        log.info("Successfully completed saga {} for order: {}", saga.getId(), shippingPreparedEvent.getOrderId());
+        log.info("Successfully completed saga {} for order: {} - All admin actions completed", 
+                saga.getId(), shippingPreparedEvent.getOrderId());
         
-        // Notify Order Service of shipping preparation via OrderStatusChangedEvent
-        daprEventPublisher.publishShippingPreparedStatus(
-            saga.getOrderId(), 
-            saga.getOrderNumber(), 
-            saga.getCustomerId(), 
-            shippingPreparedEvent.getCorrelationId()
-        );
-        
-        // Publish order completed status
-        daprEventPublisher.publishOrderCompletedStatus(
-            saga.getOrderId(),
-            saga.getOrderNumber(),
-            saga.getCustomerId(),
-            shippingPreparedEvent.getCorrelationId()
-        );
+        // Saga is complete - order fully processed
     }
 
     /**
@@ -356,7 +316,7 @@ public class SagaOrchestratorService {
             compensateSaga(saga);
         } catch (Exception e) {
             log.error("Failed to compensate saga: {}", saga.getId(), e);
-            saga.setStatus(OrderProcessingSaga.SagaStatus.FAILED);
+            saga.setStatus(OrderProcessingSaga.SagaStatus.CANCELLED);
             sagaRepository.save(saga);
         }
     }
@@ -373,7 +333,7 @@ public class SagaOrchestratorService {
                 saga.getTotalAmount(),
                 saga.getCurrency(),
                 "default", // payment method
-                LocalDateTime.now()
+                OffsetDateTime.now()
         );
 
         daprEventPublisher.publishPaymentProcessing(paymentEvent);
@@ -391,7 +351,7 @@ public class SagaOrchestratorService {
                 saga.getTotalAmount(),
                 saga.getCurrency(),
                 "default",
-                LocalDateTime.now()
+                OffsetDateTime.now()
         );
 
         daprEventPublisher.publishPaymentProcessing(paymentEvent);
@@ -496,44 +456,42 @@ public class SagaOrchestratorService {
      * Find and process stuck sagas
      */
     @Transactional
-    public void processStuckSagas() {
+    public List<OrderProcessingSaga> processStuckSagas() {
         log.info("Processing stuck sagas");
 
         LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(30);
-        List<OrderProcessingSaga.SagaStatus> processingStatuses = List.of(
-                OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING,
-                OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING,
-                OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING
+        // In admin-driven workflow, "stuck" sagas are those awaiting admin action for too long
+        // These are not failures, just alerts that admin attention is needed
+        List<OrderProcessingSaga.SagaStatus> awaitingStatuses = List.of(
+                OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION,
+                OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION
         );
 
-        List<OrderProcessingSaga> stuckSagas = sagaRepository.findStuckSagas(processingStatuses, cutoffTime);
+        List<OrderProcessingSaga> stuckSagas = sagaRepository.findStuckSagas(awaitingStatuses, cutoffTime);
         
         for (OrderProcessingSaga saga : stuckSagas) {
-            log.warn("Found stuck saga: {} in status: {}", saga.getId(), saga.getStatus());
+            log.warn("Found saga awaiting admin action for extended period: {} in status: {}", 
+                saga.getId(), saga.getStatus());
             
-            if (saga.canRetry()) {
-                // Retry the current step
-                retryCurrentStep(saga);
-            } else {
-                // Mark as failed and compensate
-                handleSagaFailure(saga, "Saga stuck in processing state");
-            }
+            // In admin workflow, we DON'T retry automatically
+            // Just log for monitoring/alerting purposes
+            // Admin must take manual action
+            
+            // Could send notification to admin team here
+            // metricsService.recordSagaRequiresAttention(saga);
         }
+        
+        return stuckSagas;
     }
 
     /**
-     * Retry the current step of a saga
+     * Retry the current step for stuck saga (DEPRECATED in admin-driven workflow)
+     * Kept for potential future use or emergency recovery
      */
+    @Deprecated
     private void retryCurrentStep(OrderProcessingSaga saga) {
-        saga.incrementRetry();
-        sagaRepository.save(saga);
-
-        switch (saga.getCurrentStep()) {
-            case PAYMENT_PROCESSING -> processPaymentRetry(saga);
-            case INVENTORY_PROCESSING -> reserveInventory(saga);
-            case SHIPPING_PROCESSING -> prepareShipping(saga);
-            default -> log.warn("Unknown step for retry: {}", saga.getCurrentStep());
-        }
+        log.info("Retry mechanism disabled in admin-driven workflow for saga: {}", saga.getId());
+        // Admin must manually intervene - no automatic retries
     }
 
     /**
@@ -607,7 +565,7 @@ public class SagaOrchestratorService {
             metricsService.recordSagaCancelled(event.getOrderNumber());
         } catch (Exception e) {
             log.error("Failed to compensate saga {} for cancelled order: {}", saga.getId(), event.getOrderId(), e);
-            saga.setStatus(OrderProcessingSaga.SagaStatus.FAILED);
+            saga.setStatus(OrderProcessingSaga.SagaStatus.CANCELLED);
             saga.setErrorMessage("Compensation failed: " + e.getMessage());
             sagaRepository.save(saga);
         }
@@ -689,9 +647,9 @@ public class SagaOrchestratorService {
         OrderProcessingSaga saga = sagaOpt.get();
         
         // If saga is in progress, trigger compensation first
-        if (saga.getStatus() == OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING ||
-            saga.getStatus() == OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING ||
-            saga.getStatus() == OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING) {
+        if (saga.getStatus() == OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION ||
+            saga.getStatus() == OrderProcessingSaga.SagaStatus.PAYMENT_CONFIRMED ||
+            saga.getStatus() == OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION) {
             
             log.warn("Saga {} is in progress, compensating before deletion", saga.getId());
             saga.setStatus(OrderProcessingSaga.SagaStatus.COMPENSATING);

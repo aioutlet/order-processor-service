@@ -102,6 +102,15 @@ services:
   shipping:
     app-id: shipping-service
 
+# JWT Configuration
+# Only JWT_SECRET is truly secret (loaded from Dapr Secret Store)
+# Algorithm and expiration are just configuration values
+jwt:
+  algorithm: ${JWT_ALGORITHM:HS256}
+  expiration-seconds: ${JWT_EXPIRATION:3600}
+  issuer: ${JWT_ISSUER:auth-service}
+  audience: ${JWT_AUDIENCE:aioutlet-platform}
+
 # Saga orchestration configuration
 saga:
   retry:

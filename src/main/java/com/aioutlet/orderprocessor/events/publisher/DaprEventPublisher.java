@@ -1,14 +1,13 @@
 package com.aioutlet.orderprocessor.events.publisher;
 
 import io.dapr.client.DaprClient;
-import io.dapr.client.DaprClientBuilder;
 import io.dapr.client.domain.CloudEvent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,29 +17,17 @@ import java.util.Map;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DaprEventPublisher {
 
     @Value("${dapr.pubsub-name:order-pubsub}")
     private String pubsubName;
 
-    private DaprClient daprClient;
+    private final DaprClient daprClient;
 
     @PostConstruct
     public void init() {
-        this.daprClient = new DaprClientBuilder().build();
         log.info("Dapr Event Publisher initialized with pubsub: {}", pubsubName);
-    }
-
-    @PreDestroy
-    public void cleanup() {
-        if (daprClient != null) {
-            try {
-                daprClient.close();
-                log.info("Dapr client closed successfully");
-            } catch (Exception e) {
-                log.error("Error closing Dapr client", e);
-            }
-        }
     }
 
     /**

@@ -55,19 +55,19 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Long>> getSagaStats() {
         Map<String, Long> stats = Map.of(
-            "STARTED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.STARTED),
-            "PAYMENT_PROCESSING", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING),
-            "INVENTORY_PROCESSING", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING),
-            "SHIPPING_PROCESSING", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING),
+            "CREATED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.CREATED),
+            "PENDING_PAYMENT_CONFIRMATION", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION),
+            "PAYMENT_CONFIRMED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PAYMENT_CONFIRMED),
+            "PENDING_SHIPPING_PREPARATION", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION),
+            "SHIPPING_PREPARED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.SHIPPING_PREPARED),
             "COMPLETED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPLETED),
-            "FAILED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.FAILED),
+            "CANCELLED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.CANCELLED),
             "COMPENSATING", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPENSATING),
             "COMPENSATED", sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPENSATED)
         );
         
         return ResponseEntity.ok(stats);
     }
-
     /**
      * Get Dapr info
      */

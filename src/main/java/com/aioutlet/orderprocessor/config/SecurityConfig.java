@@ -33,6 +33,7 @@ public class SecurityConfig {
                 authorizeRequests
                     .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/v1/health", "/api/v1/ready", "/api/v1/correlation-test", "/api/v1/echo").permitAll()
+                    .requestMatchers("/dapr/**").permitAll()  // Allow Dapr pub/sub subscriptions
                     .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )

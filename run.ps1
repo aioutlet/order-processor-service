@@ -4,7 +4,13 @@
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "Starting order-processor-service with Dapr..." -ForegroundColor Cyan
+#!/usr/bin/env pwsh
+# Run Order Processor Service with Dapr sidecar
+# Usage: .\run.ps1
+
+$Host.UI.RawUI.WindowTitle = "Order Processor"
+
+Write-Host "Starting Order Processor Service with Dapr..." -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 

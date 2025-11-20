@@ -3,6 +3,8 @@ package com.aioutlet.orderprocessor.model.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,11 +41,11 @@ public class OrderProcessingSaga {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private SagaStatus status = SagaStatus.STARTED;
+    private SagaStatus status = SagaStatus.CREATED;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "current_step", nullable = false)
-    private ProcessingStep currentStep = ProcessingStep.PAYMENT_PROCESSING;
+    private ProcessingStep currentStep = ProcessingStep.AWAITING_PAYMENT;
 
     @Column(name = "payment_id")
     private String paymentId;
@@ -55,12 +57,15 @@ public class OrderProcessingSaga {
     private String shippingId;
 
     @Column(name = "order_items", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String orderItems;
 
     @Column(name = "shipping_address", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String shippingAddress;
 
     @Column(name = "billing_address", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String billingAddress;
 
     @Column(name = "error_message")
@@ -79,23 +84,21 @@ public class OrderProcessingSaga {
     private LocalDateTime completedAt;
 
     public enum SagaStatus {
-        STARTED,
-        PAYMENT_PROCESSING,
-        PAYMENT_COMPLETED,
-        INVENTORY_PROCESSING,
-        INVENTORY_COMPLETED,
-        SHIPPING_PROCESSING,
-        COMPLETED,
-        FAILED,
-        COMPENSATING,
-        COMPENSATED
+        CREATED,                        // Order created, saga initiated
+        PENDING_PAYMENT_CONFIRMATION,   // Waiting for admin to confirm payment received
+        PAYMENT_CONFIRMED,              // Admin confirmed payment received
+        PENDING_SHIPPING_PREPARATION,   // Waiting for admin to prepare shipment
+        SHIPPING_PREPARED,              // Admin prepared shipment
+        COMPLETED,                      // Order fully processed
+        CANCELLED,                      // Order cancelled by admin
+        COMPENSATING,                   // Rolling back due to cancellation
+        COMPENSATED                     // Rollback completed
     }
 
     public enum ProcessingStep {
-        PAYMENT_PROCESSING,
-        INVENTORY_PROCESSING,
-        SHIPPING_PROCESSING,
-        COMPLETED
+        AWAITING_PAYMENT,               // Admin needs to confirm payment
+        AWAITING_SHIPMENT,              // Admin needs to prepare shipment
+        COMPLETED                       // All steps done
     }
 
     @PreUpdate
@@ -108,17 +111,17 @@ public class OrderProcessingSaga {
     }
 
     public boolean isFailed() {
-        return status == SagaStatus.FAILED || status == SagaStatus.COMPENSATED;
+        return status == SagaStatus.CANCELLED || status == SagaStatus.COMPENSATED;
     }
 
     public boolean canRetry() {
-        return retryCount < 3 && (status == SagaStatus.FAILED || isProcessingStep());
+        // No automatic retries in admin-driven workflow
+        return false;
     }
 
     private boolean isProcessingStep() {
-        return status == SagaStatus.PAYMENT_PROCESSING ||
-               status == SagaStatus.INVENTORY_PROCESSING ||
-               status == SagaStatus.SHIPPING_PROCESSING;
+        return status == SagaStatus.PENDING_PAYMENT_CONFIRMATION ||
+               status == SagaStatus.PENDING_SHIPPING_PREPARATION;
     }
 
     public void incrementRetry() {
@@ -132,7 +135,16 @@ public class OrderProcessingSaga {
     }
 
     public void markFailed(String errorMessage) {
-        this.status = SagaStatus.FAILED;
+        this.status = SagaStatus.CANCELLED;
         this.errorMessage = errorMessage;
+    }
+
+    public void markPaymentConfirmed() {
+        this.status = SagaStatus.PAYMENT_CONFIRMED;
+        this.currentStep = ProcessingStep.AWAITING_SHIPMENT;
+    }
+
+    public void markShippingPrepared() {
+        this.status = SagaStatus.SHIPPING_PREPARED;
     }
 }

@@ -205,22 +205,23 @@ public class SagaMetricsService {
      */
     public void updateGauges() {
         try {
+            // In admin-driven workflow, active means awaiting admin action
             List<OrderProcessingSaga.SagaStatus> activeStatuses = List.of(
-                OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING,
-                OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING,
-                OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING
+                OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION,
+                OrderProcessingSaga.SagaStatus.PAYMENT_CONFIRMED,
+                OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION
             );
             
             long activeSagas = sagaRepository.countByStatusIn(activeStatuses);
             long completedSagas = sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
-            long failedSagas = sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.FAILED);
+            long cancelledSagas = sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.CANCELLED);
             
             LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(30);
             long stuckSagas = sagaRepository.countStuckSagas(activeStatuses, cutoffTime);
             
             activeSagasGauge.set(activeSagas);
             completedSagasGauge.set(completedSagas);
-            failedSagasGauge.set(failedSagas);
+            failedSagasGauge.set(cancelledSagas); // Using existing gauge name, but tracking cancelled
             stuckSagasGauge.set(stuckSagas);
             
         } catch (Exception e) {

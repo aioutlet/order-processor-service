@@ -30,28 +30,28 @@ public class OrderProcessorHealthIndicator {
             
             // Check saga statistics
             long totalSagas = sagaRepository.count();
+            // In admin-driven workflow, active means awaiting admin action
             long activeSagas = sagaRepository.countByStatusIn(List.of(
-                OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING,
-                OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING,
-                OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING
+                OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION,
+                OrderProcessingSaga.SagaStatus.PAYMENT_CONFIRMED,
+                OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION
             ));
-            long failedSagas = sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.FAILED);
+            long cancelledSagas = sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.CANCELLED);
             long completedSagas = sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPLETED);
             
             details.put("totalSagas", totalSagas);
             details.put("activeSagas", activeSagas);
-            details.put("failedSagas", failedSagas);
+            details.put("cancelledSagas", cancelledSagas);
             details.put("completedSagas", completedSagas);
             
-            // Check for stuck sagas
+            // Check for sagas awaiting admin action for extended period
             LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(30);
-            List<OrderProcessingSaga.SagaStatus> processingStatuses = List.of(
-                OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING,
-                OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING,
-                OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING
+            List<OrderProcessingSaga.SagaStatus> awaitingStatuses = List.of(
+                OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION,
+                OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION
             );
             
-            long stuckSagas = sagaRepository.countStuckSagas(processingStatuses, cutoffTime);
+            long stuckSagas = sagaRepository.countStuckSagas(awaitingStatuses, cutoffTime);
             details.put("stuckSagas", stuckSagas);
             
             // Determine health status

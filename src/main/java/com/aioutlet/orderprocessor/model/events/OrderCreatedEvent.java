@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,8 +21,7 @@ public class OrderCreatedEvent {
     private BigDecimal totalAmount;
     private String currency;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     private List<OrderItemEvent> items;
     private AddressEvent shippingAddress;

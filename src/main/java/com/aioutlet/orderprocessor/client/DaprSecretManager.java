@@ -1,13 +1,12 @@
 package com.aioutlet.orderprocessor.client;
 
 import io.dapr.client.DaprClient;
-import io.dapr.client.DaprClientBuilder;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import java.util.Map;
 
 /**
@@ -16,29 +15,16 @@ import java.util.Map;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DaprSecretManager {
 
-    @Value("${dapr.secret-store.name:local-secret-store}")
-    private String secretStoreName;
+    private static final String SECRET_STORE_NAME = "secret-store";
 
-    private DaprClient daprClient;
+    private final DaprClient daprClient;
 
     @PostConstruct
     public void init() {
-        this.daprClient = new DaprClientBuilder().build();
-        log.info("Dapr Secret Manager initialized with store: {}", secretStoreName);
-    }
-
-    @PreDestroy
-    public void cleanup() {
-        if (daprClient != null) {
-            try {
-                daprClient.close();
-                log.info("Dapr client closed successfully");
-            } catch (Exception e) {
-                log.error("Error closing Dapr client", e);
-            }
-        }
+        log.info("Dapr Secret Manager initialized with store: {}", SECRET_STORE_NAME);
     }
 
     /**
@@ -49,7 +35,7 @@ public class DaprSecretManager {
         try {
             log.debug("Retrieving secret: {}", key);
             
-            Map<String, String> secret = daprClient.getSecret(secretStoreName, key).block();
+            Map<String, String> secret = daprClient.getSecret(SECRET_STORE_NAME, key).block();
             
             if (secret == null || secret.isEmpty()) {
                 log.warn("Secret not found: {}", key);
@@ -72,7 +58,7 @@ public class DaprSecretManager {
     public Map<String, String> getSecrets(String key) {
         try {
             log.debug("Retrieving secrets for key: {}", key);
-            return daprClient.getSecret(secretStoreName, key).block();
+            return daprClient.getSecret(SECRET_STORE_NAME, key).block();
         } catch (Exception e) {
             log.error("Failed to retrieve secrets for key: {}", key, e);
             throw new RuntimeException("Failed to retrieve secrets", e);
