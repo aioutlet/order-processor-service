@@ -44,7 +44,7 @@ class AdminControllerTest {
         saga.setOrderId(orderId);
         saga.setCustomerId(UUID.randomUUID().toString());
         saga.setOrderNumber("ORD-001");
-        saga.setStatus(OrderProcessingSaga.SagaStatus.STARTED);
+        saga.setStatus(OrderProcessingSaga.SagaStatus.CREATED);
         saga.setTotalAmount(new BigDecimal("99.99"));
         saga.setCreatedAt(LocalDateTime.now());
         saga.setUpdatedAt(LocalDateTime.now());
@@ -63,7 +63,7 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].id").value(sagaId.toString()))
                 .andExpect(jsonPath("$.content[0].orderId").value(orderId.toString()))
-                .andExpect(jsonPath("$.content[0].status").value("STARTED"));
+                .andExpect(jsonPath("$.content[0].status").value("CREATED"));
     }
 
     @Test
@@ -115,7 +115,7 @@ class AdminControllerTest {
         saga.setOrderId(orderId);
         saga.setCustomerId(UUID.randomUUID().toString());
         saga.setOrderNumber("ORD-003");
-        saga.setStatus(OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING);
+        saga.setStatus(OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION);
         saga.setTotalAmount(new BigDecimal("75.50"));
         saga.setCreatedAt(LocalDateTime.now());
         saga.setUpdatedAt(LocalDateTime.now());
@@ -128,7 +128,7 @@ class AdminControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(sagaId.toString()))
                 .andExpect(jsonPath("$.orderId").value(orderId.toString()))
-                .andExpect(jsonPath("$.status").value("PAYMENT_PROCESSING"));
+                .andExpect(jsonPath("$.status").value("PENDING_PAYMENT_CONFIRMATION"));
     }
 
     @Test
@@ -145,12 +145,12 @@ class AdminControllerTest {
     @Test
     void getSagaStats_ShouldReturnStatusCounts() throws Exception {
         // Arrange
-        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.STARTED)).thenReturn(5L);
-        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING)).thenReturn(3L);
-        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING)).thenReturn(2L);
-        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.SHIPPING_PROCESSING)).thenReturn(1L);
+        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.CREATED)).thenReturn(5L);
+        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION)).thenReturn(3L);
+        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PAYMENT_CONFIRMED)).thenReturn(2L);
+        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.PENDING_SHIPPING_PREPARATION)).thenReturn(1L);
         when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPLETED)).thenReturn(15L);
-        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.FAILED)).thenReturn(2L);
+        when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.CANCELLED)).thenReturn(2L);
         when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPENSATING)).thenReturn(1L);
         when(sagaRepository.countByStatus(OrderProcessingSaga.SagaStatus.COMPENSATED)).thenReturn(1L);
 

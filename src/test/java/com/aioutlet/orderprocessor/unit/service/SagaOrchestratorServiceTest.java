@@ -62,7 +62,7 @@ class SagaOrchestratorServiceTest {
         testSaga.setOrderNumber("ORD-20250811-ABC123");
         testSaga.setTotalAmount(BigDecimal.valueOf(99.99));
         testSaga.setCurrency("USD");
-        testSaga.setStatus(OrderProcessingSaga.SagaStatus.PAYMENT_PROCESSING);
+        testSaga.setStatus(OrderProcessingSaga.SagaStatus.PENDING_PAYMENT_CONFIRMATION);
     }
 
     @Test
@@ -112,7 +112,7 @@ class SagaOrchestratorServiceTest {
         verify(sagaRepository).findByOrderId(paymentEvent.getOrderId());
         verify(sagaRepository).save(testSaga);
         verify(daprEventPublisher).publishInventoryReservation(any());
-        assertEquals(OrderProcessingSaga.SagaStatus.INVENTORY_PROCESSING, testSaga.getStatus());
+        assertEquals(OrderProcessingSaga.SagaStatus.PAYMENT_CONFIRMED, testSaga.getStatus());
         assertEquals("payment123", testSaga.getPaymentId());
     }
 
