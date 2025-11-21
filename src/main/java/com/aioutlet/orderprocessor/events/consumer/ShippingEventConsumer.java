@@ -1,6 +1,5 @@
 package com.aioutlet.orderprocessor.events.consumer;
 
-import io.dapr.Topic;
 import io.dapr.client.domain.CloudEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ public class ShippingEventConsumer {
     /**
      * Handle shipping.prepared event
      */
-    @Topic(name = "${topics.shipping-prepared}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/shipping-prepared")
     public ResponseEntity<Void> handleShippingPrepared(@RequestBody CloudEvent<ShippingPreparedEvent> cloudEvent) {
         try {
@@ -43,7 +41,6 @@ public class ShippingEventConsumer {
     /**
      * Handle shipping.failed event
      */
-    @Topic(name = "${topics.shipping-failed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/shipping-failed")
     public ResponseEntity<Void> handleShippingFailed(@RequestBody CloudEvent<ShippingFailedEvent> cloudEvent) {
         try {

@@ -1,6 +1,5 @@
 package com.aioutlet.orderprocessor.events.consumer;
 
-import io.dapr.Topic;
 import io.dapr.client.domain.CloudEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ public class PaymentEventConsumer {
     /**
      * Handle payment.processed event
      */
-    @Topic(name = "${topics.payment-processed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/payment-processed")
     public ResponseEntity<Void> handlePaymentProcessed(@RequestBody CloudEvent<PaymentProcessedEvent> cloudEvent) {
         try {
@@ -43,7 +41,6 @@ public class PaymentEventConsumer {
     /**
      * Handle payment.failed event
      */
-    @Topic(name = "${topics.payment-failed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/payment-failed")
     public ResponseEntity<Void> handlePaymentFailed(@RequestBody CloudEvent<PaymentFailedEvent> cloudEvent) {
         try {

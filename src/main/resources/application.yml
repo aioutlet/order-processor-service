@@ -81,16 +81,6 @@ dapr:
   app-id: ${DAPR_APP_ID:order-processor-service}
   pubsub-name: ${DAPR_PUBSUB_NAME:event-bus}
 
-# Topic names for event subscriptions
-topics:
-  order-created: order.created
-  payment-processed: payment.processed
-  payment-failed: payment.failed
-  inventory-reserved: inventory.reserved
-  inventory-failed: inventory.failed
-  shipping-prepared: shipping.prepared
-  shipping-failed: shipping.failed
-
 # Service invocation via Dapr (app-id based, not URLs)
 services:
   order:

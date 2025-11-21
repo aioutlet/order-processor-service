@@ -1,6 +1,5 @@
 package com.aioutlet.orderprocessor.events.consumer;
 
-import io.dapr.Topic;
 import io.dapr.client.domain.CloudEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ public class InventoryEventConsumer {
     /**
      * Handle inventory.reserved event
      */
-    @Topic(name = "${topics.inventory-reserved}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/inventory-reserved")
     public ResponseEntity<Void> handleInventoryReserved(@RequestBody CloudEvent<InventoryReservedEvent> cloudEvent) {
         try {
@@ -43,7 +41,6 @@ public class InventoryEventConsumer {
     /**
      * Handle inventory.failed event
      */
-    @Topic(name = "${topics.inventory-failed}", pubsubName = "${dapr.pubsub-name}")
     @PostMapping("/inventory-failed")
     public ResponseEntity<Void> handleInventoryFailed(@RequestBody CloudEvent<InventoryFailedEvent> cloudEvent) {
         try {
