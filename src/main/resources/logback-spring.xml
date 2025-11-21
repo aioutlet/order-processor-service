@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     
+    <!-- Suppress Logback's own status messages during initialization -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+    
     <!-- Import OpenTelemetry appender -->
     <!-- Temporarily disabled due to circular reference error -->
     <!-- <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender" /> -->

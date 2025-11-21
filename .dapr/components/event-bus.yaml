@@ -28,5 +28,7 @@ spec:
       value: 'parallel'
     - name: exchangeKind
       value: 'topic'
+    - name: enableEntityManagement
+      value: 'true'
 scopes:
   - order-processor-service
